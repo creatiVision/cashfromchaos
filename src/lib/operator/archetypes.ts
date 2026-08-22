@@ -57,7 +57,7 @@ export const ARCHETYPES: Archetype[] = [
     flags: ["authenticity-sensitive", "value-in-tail"],
     marketLow: 65,
     marketHigh: 110,
-    channels: ["collector-forum-mock", "ebay-mock", "cashfromchaos-sandbox"],
+    channels: ["collector-forum-mock", "ebay-mock", "ebay-de-mock", "cashfromchaos-sandbox"],
     bundleRecommended: true,
     strategy: [
       "Avoid local generalist first — collectors pay a premium.",
@@ -102,7 +102,7 @@ export const ARCHETYPES: Archetype[] = [
     flags: ["condition-sensitive"],
     marketLow: 70,
     marketHigh: 120,
-    channels: ["reverb-mock", "wallapop-mock", "ebay-mock"],
+    channels: ["reverb-mock", "wallapop-mock", "ebay-mock", "ebay-de-mock"],
     bundleRecommended: false,
     strategy: [
       "Lead on specialist music channel; generalist as fallback.",
@@ -151,7 +151,7 @@ export const ARCHETYPES: Archetype[] = [
     flags: ["condition-sensitive", "data-wipe-recommended"],
     marketLow: 55,
     marketHigh: 130,
-    channels: ["wallapop-mock", "ebay-mock", "cashfromchaos-sandbox"],
+    channels: ["wallapop-mock", "ebay-mock", "ebay-de-mock", "cashfromchaos-sandbox"],
     bundleRecommended: false,
     strategy: [
       "Generalist marketplace first; global channel as fallback for premium/rare models.",
@@ -282,7 +282,7 @@ export const GENERIC_ARCHETYPE: Archetype = {
   flags: [],
   marketLow: 20,
   marketHigh: 60,
-  channels: ["wallapop-mock", "ebay-mock", "cashfromchaos-sandbox"],
+  channels: ["wallapop-mock", "ebay-mock", "ebay-de-mock", "cashfromchaos-sandbox"],
   bundleRecommended: false,
   strategy: [
     "Generalist marketplace first; eBay-style fallback if demand is thin or item is rare.",
