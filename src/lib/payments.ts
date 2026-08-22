@@ -49,7 +49,7 @@ export async function createCheckout(
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
-    payment_method_types: ["card"],
+    payment_method_types: ["card", "paypal"],
     line_items: [
       {
         quantity: 1,
