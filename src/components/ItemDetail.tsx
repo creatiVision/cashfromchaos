@@ -35,89 +35,120 @@ export function ItemDetail({ initial }: { initial: Item }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.intake.photos[0]}
-            alt={item.analysis.title}
-            className="h-24 w-24 rounded-xl border border-edge object-cover"
-          />
-          <div>
-            <Link href="/dashboard" className="text-xs text-muted hover:text-cash">
-              ← Operations
-            </Link>
-            <h1 className="text-2xl font-black tracking-tight">{item.analysis.title}</h1>
-            <p className="text-sm text-muted">{item.analysis.category}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <StatusBadge status={item.status} />
-              <ConfidenceBadge value={item.analysis.confidence} />
-            </div>
-          </div>
-        </div>
-        <Link href={`/market/${item.id}`} className="btn-ghost">
-          Open buyer listing ↗
-        </Link>
-      </div>
+      <ItemHeader item={item} />
 
       <Timeline status={item.status} />
 
-      {/* Mobile (<lg): a scrollable operation dossier — no tab strip to fight
-          on a phone. The live trace is part of the narrative, not a sidebar. */}
-      <div className="space-y-5 lg:hidden">
-        <Section title="Live operation trace">
-          <TraceList events={item.trace} />
-        </Section>
-        <GroupHeader>Decision</GroupHeader>
-        <AnalysisTab item={item} />
-        <MarketplaceTab item={item} />
-        <PolicyTab item={item} />
-        <GroupHeader>Listing</GroupHeader>
-        <ListingsTab item={item} />
-        <GroupHeader>Buyer &amp; Payment</GroupHeader>
-        <BuyerTab item={item} />
-        <PaymentTab item={item} />
-        <GroupHeader>Fulfillment &amp; Payout</GroupHeader>
-        <FulfillmentTab item={item} onChange={refresh} />
-        <PnLTab item={item} />
-      </div>
+      {/* Mobile (<lg) */}
+      <MobileView item={item} refresh={refresh} />
 
-      {/* Desktop (lg+): tabbed detail + sticky trace sidebar. */}
-      <div className="hidden gap-6 lg:grid lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-1.5">
-            {TABS.map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                  tab === t ? "bg-cash text-ink font-semibold" : "bg-panel2 text-muted hover:text-ink"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {tab === "Analysis" && <AnalysisTab item={item} />}
-          {tab === "Marketplace" && <MarketplaceTab item={item} />}
-          {tab === "Listings" && <ListingsTab item={item} />}
-          {tab === "Policy" && <PolicyTab item={item} />}
-          {tab === "Buyer" && <BuyerTab item={item} />}
-          {tab === "Payment" && <PaymentTab item={item} />}
-          {tab === "Fulfillment" && <FulfillmentTab item={item} onChange={refresh} />}
-          {tab === "P&L" && <PnLTab item={item} />}
-        </div>
-
-        <aside className="lg:sticky lg:top-20 lg:self-start">
-          <Section title="Live operation trace">
-            <TraceList events={item.trace} />
-          </Section>
-        </aside>
-      </div>
+      {/* Desktop (lg+) */}
+      <DesktopView item={item} tab={tab} setTab={setTab} refresh={refresh} />
     </div>
   );
 }
+
+
+function ItemHeader({ item }: { item: Item }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex gap-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.intake.photos[0]}
+          alt={item.analysis.title}
+          className="h-24 w-24 rounded-xl border border-edge object-cover"
+        />
+        <div>
+          <Link href="/dashboard" className="text-xs text-muted hover:text-cash">
+            ← Operations
+          </Link>
+          <h1 className="text-2xl font-black tracking-tight">{item.analysis.title}</h1>
+          <p className="text-sm text-muted">{item.analysis.category}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <StatusBadge status={item.status} />
+            <ConfidenceBadge value={item.analysis.confidence} />
+          </div>
+        </div>
+      </div>
+      <Link href={`/market/${item.id}`} className="btn-ghost">
+        Open buyer listing ↗
+      </Link>
+    </div>
+  );
+}
+
+
+function MobileView({ item, refresh }: { item: Item; refresh: () => void }) {
+  return (
+    <div className="space-y-5 lg:hidden">
+      <Section title="Live operation trace">
+        <TraceList events={item.trace} />
+      </Section>
+      <GroupHeader>Decision</GroupHeader>
+      <AnalysisTab item={item} />
+      <MarketplaceTab item={item} />
+      <PolicyTab item={item} />
+      <GroupHeader>Listing</GroupHeader>
+      <ListingsTab item={item} />
+      <GroupHeader>Buyer &amp; Payment</GroupHeader>
+      <BuyerTab item={item} />
+      <PaymentTab item={item} />
+      <GroupHeader>Fulfillment &amp; Payout</GroupHeader>
+      <FulfillmentTab item={item} onChange={refresh} />
+      <PnLTab item={item} />
+    </div>
+  );
+}
+
+
+function DesktopView({
+  item,
+  tab,
+  setTab,
+  refresh,
+}: {
+  item: Item;
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  refresh: () => void;
+}) {
+  return (
+    <div className="hidden gap-6 lg:grid lg:grid-cols-[1fr_360px]">
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-1.5">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                tab === t ? "bg-cash text-ink font-semibold" : "bg-panel2 text-muted hover:text-ink"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === "Analysis" && <AnalysisTab item={item} />}
+        {tab === "Marketplace" && <MarketplaceTab item={item} />}
+        {tab === "Listings" && <ListingsTab item={item} />}
+        {tab === "Policy" && <PolicyTab item={item} />}
+        {tab === "Buyer" && <BuyerTab item={item} />}
+        {tab === "Payment" && <PaymentTab item={item} />}
+        {tab === "Fulfillment" && <FulfillmentTab item={item} onChange={refresh} />}
+        {tab === "P&L" && <PnLTab item={item} />}
+      </div>
+
+      <aside className="lg:sticky lg:top-20 lg:self-start">
+        <Section title="Live operation trace">
+          <TraceList events={item.trace} />
+        </Section>
+      </aside>
+    </div>
+  );
+}
+
 
 function GroupHeader({ children }: { children: React.ReactNode }) {
   return (
