@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,12 +18,15 @@
     "stripe": "16.12.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "20.14.10",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.19",
+    "jest": "^30.4.2",
     "postcss": "8.4.39",
     "tailwindcss": "3.4.6",
+    "ts-jest": "^29.4.12",
     "typescript": "5.5.3"
   }
 }
