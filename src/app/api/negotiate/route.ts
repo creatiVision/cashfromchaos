@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSeeded, getItem, negotiate } from "@/lib/store";
 import { parseOffer } from "@/lib/money";
+import { checkApiAuth } from "@/lib/auth";
 import type { BuyerMessage } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const denied = checkApiAuth(req);
+  if (denied) return denied;
   const body = await req.json();
   const { itemId, text, buyerName } = body ?? {};
   if (!itemId || !text) {

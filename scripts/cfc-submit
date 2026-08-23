@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# ============================================================================
+# cfc-submit — submit an item (photo + clue) to a running CashFromChaos app.
+#
+# Usage:
+#   cfc-submit <photo.(jpg|png|webp|gif)> <one-line clue> [--reach auto|shipping|local-pickup] [--url URL]
+#
+# Environment:
+#   CFC_URL           base URL of the app   (default http://localhost:3000)
+#   CFC_API_TOKEN     optional bearer token (only needed if the server sets one)
+#
+# Examples:
+#   cfc-submit foto.jpg "guitar pedal zu verkaufen"
+#   cfc-submit stuhl.png "alter Sessel" --reach local-pickup --url http://192.168.178.111:3000
+#
+# Prints the created item id, chosen channel and price policy as a short
+# summary; full JSON on stderr with CFC_VERBOSE=1.
+# Designed for LAN agents (Hermes, AionUI, n8n) — plain bash + curl + base64.
+# ============================================================================
+set -euo pipefail
+
+usage() { grep '^#   cfc-submit' "$0" | head -2; exit 1; }
+
+PHOTO=""; CLUE=""; REACH="auto"; URL="${CFC_URL:-http://localhost:3000}"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --reach) REACH="$2"; shift 2 ;;
+    --url)   URL="$2"; shift 2 ;;
+    -h|--help) usage ;;
+    *) if [ -z "$PHOTO" ]; then PHOTO="$1"; elif [ -z "$CLUE" ]; then CLUE="$1"; fi; shift ;;
+  esac
+done
+[ -n "$PHOTO" ] && [ -n "$CLUE" ] || usage
+[ -f "$PHOTO" ] || { echo "error: photo not found: $PHOTO" >&2; exit 1; }
+
+case "${PHOTO##*.}" in
+  jpg|jpeg) MIME="image/jpeg" ;;
+  png)      MIME="image/png" ;;
+  webp)     MIME="image/webp" ;;
+  gif)      MIME="image/gif" ;;
+  *)        MIME="image/jpeg" ;;
+esac
+
+B64=$(base64 -w0 "$PHOTO")
+AUTH=()
+[ -n "${CFC_API_TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer $CFC_API_TOKEN")
+
+BODY_FILE=$(mktemp)
+trap 'rm -f "$BODY_FILE"' EXIT
+printf '{"clue":%s,"photos":["data:%s;base64,%s"],"fulfillmentOverride":"%s"}' \
+  "$(printf '%s' "$CLUE" | python3 -c 'import sys,json;print(json.dumps(sys.stdin.read()))')" \
+  "$MIME" "$B64" "$REACH" > "$BODY_FILE"
+
+RESP=$(curl -sf -X POST "$URL/api/items" \
+  -H 'Content-Type: application/json' "${AUTH[@]+"${AUTH[@]}"}" \
+  -d @"$BODY_FILE") || { echo "error: request to $URL/api/items failed" >&2; exit 2; }
+
+[ "${CFC_VERBOSE:-0}" = "1" ] && echo "$RESP" >&2
+
+echo "$RESP" | python3 -c '
+import sys, json
+it = json.load(sys.stdin)["item"]
+p = it["plan"]["primary"]
+pol = it["policy"]
+missing = len(it["analysis"]["missingInfo"])
+base = sys.argv[1]
+print("id:       " + it["id"])
+print("title:    " + it["analysis"]["title"])
+print("channel:  " + p["name"] + " (fee " + str(p["feePct"]) + "%)")
+print("target:   EUR " + str(pol["targetPrice"]) + "  floor: EUR " + str(pol["floorPrice"]))
+print("shipping: " + ("yes" if pol["shippingAllowed"] else "NO (pickup only)"))
+if missing:
+    print(f"note:     {missing} open question(s) - answer via intake UI or re-POST with answers")
+print("detail:   " + base + "/item/" + it["id"])
+' "$URL"

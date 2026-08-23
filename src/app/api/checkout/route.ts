@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureSeeded, getItem, saveItem, trace } from "@/lib/store";
 import { createCheckout } from "@/lib/payments";
 import { eur } from "@/lib/money";
+import { checkApiAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const denied = checkApiAuth(req);
+  if (denied) return denied;
   const { itemId } = await req.json();
   await ensureSeeded();
   const item = getItem(itemId);
