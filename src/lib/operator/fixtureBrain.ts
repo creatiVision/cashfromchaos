@@ -50,7 +50,8 @@ function refineWithAnswers(a: Archetype, intake: ItemIntake): { low: number; hig
   let high = a.marketHigh;
   const notes: string[] = [];
   const ans = intake.answers ?? {};
-  for (const v of Object.values(ans).map((x) => x.toLowerCase())) {
+  for (const val of Object.values(ans)) {
+    const v = val.toLowerCase();
     if (/(faulty|not work|broken|for parts)/.test(v)) {
       low = round2(low * 0.45);
       high = round2(high * 0.5);
