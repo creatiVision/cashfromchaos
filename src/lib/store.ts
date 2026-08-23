@@ -204,22 +204,29 @@ async function seedDemo(): Promise<void> {
   // The live Hermes operator only kicks in for new buyer messages typed during
   // the demo, via getOperator() in negotiate().
   const seedBrain = new FixtureBrain();
-  let t = Date.now() - 1000 * 60 * 60;
-  for (const seed of DEMO_INTAKES) {
-    const item = await createItemFromIntake(seed.intake, { id: seed.id, createdAt: (t += 60000) });
-    for (const m of seed.seedMessages ?? []) {
-      await negotiate(
-        item,
-        {
-          itemId: item.id,
-          buyerName: m.buyerName,
-          text: m.text,
-          offer: m.offer,
-          ts: Date.now() - (m.agoMs ?? 0),
-        },
-        seedBrain
-      );
-    }
-    saveItem(item);
-  }
+  const t = Date.now() - 1000 * 60 * 60;
+
+  await Promise.all(
+    DEMO_INTAKES.map(async (seed, index) => {
+      const item = await createItemFromIntake(seed.intake, {
+        id: seed.id,
+        createdAt: t + (index + 1) * 60000
+      });
+
+      for (const m of seed.seedMessages ?? []) {
+        await negotiate(
+          item,
+          {
+            itemId: item.id,
+            buyerName: m.buyerName,
+            text: m.text,
+            offer: m.offer,
+            ts: Date.now() - (m.agoMs ?? 0),
+          },
+          seedBrain
+        );
+      }
+      saveItem(item);
+    })
+  );
 }
