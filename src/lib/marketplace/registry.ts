@@ -101,15 +101,6 @@ export const ADAPTERS: Record<string, MarketplaceAdapter> = {
     blurb: "Global reach fallback for rare or niche items.",
     strengths: ["electronics", "collectibles", "music", "rare"],
   }),
-  "ebay-de-mock": mockAdapter({
-    id: "ebay-de-mock",
-    name: "eBay Kleinanzeigen (mock)",
-    kind: "shipping",
-    feePct: 11,
-    shippingFriendly: true,
-    blurb: "German eBay equivalent for local and shipped items.",
-    strengths: ["electronics", "collectibles", "music", "rare", "german", "germany"],
-  }),
   "local-pickup-mock": mockAdapter({
     id: "local-pickup-mock",
     name: "Local Pickup Channel (mock)",
