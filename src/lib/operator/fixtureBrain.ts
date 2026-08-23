@@ -9,6 +9,7 @@ import type {
   AgentReply,
   BuyerMessage,
   CommercePolicy,
+  FulfillmentMode,
   FulfillmentPlan,
   Item,
   ItemAnalysis,
@@ -67,6 +68,12 @@ function refineWithAnswers(a: Archetype, intake: ItemIntake): { low: number; hig
   return { low, high, notes };
 }
 
+/** Effective fulfillment posture: seller override wins over archetype default. */
+function effectiveFulfillment(a: Archetype, intake?: ItemIntake): FulfillmentMode {
+  const o = intake?.fulfillmentOverride;
+  return !o || o === "auto" ? a.fulfillment : o;
+}
+
 export class FixtureBrain implements OperatorBrain {
   readonly name: string = "fixture";
 
@@ -76,6 +83,14 @@ export class FixtureBrain implements OperatorBrain {
     // If the seller already answered an archetype question, drop it from missingInfo.
     const answered = new Set(Object.keys(input.answers ?? {}));
     const missing = a.questions.filter((q) => !answered.has(q.id));
+    const eff = effectiveFulfillment(a, input);
+    if (input.fulfillmentOverride && input.fulfillmentOverride !== "auto") {
+      notes.push(
+        input.fulfillmentOverride === "local-pickup"
+          ? "Seller restricted reach to local pickup → shipping channels demoted, no logistics spend."
+          : "Seller restricted reach to shipping only → pickup channels demoted."
+      );
+    }
     return {
       title: a.title,
       category: a.category,
@@ -87,12 +102,25 @@ export class FixtureBrain implements OperatorBrain {
       flags: a.flags,
       estimatedMarketLow: low,
       estimatedMarketHigh: high,
+      fulfillment: eff,
     };
   }
 
   async chooseMarketplace(input: ItemAnalysis): Promise<MarketplacePlan> {
     const a = matchArchetype(input.title + " " + input.category);
-    const opts = a.channels.map((id, i) => channelOption(id, i, input.category));
+    const eff = input.fulfillment ?? a.fulfillment;
+    // Rank compatible channels first; keep the rest as fallbacks.
+    const fits = (id: string) => {
+      const ad = getAdapter(id);
+      if (!ad) return false;
+      if (eff === "shipping") return ad.shippingFriendly;
+      // Pickup-capable = local/generalist channels; pure shipping specialists demote.
+      return ad.kind !== "shipping";
+    };
+    const opts = [
+      ...a.channels.filter(fits),
+      ...a.channels.filter((id) => !fits(id)),
+    ].map((id, i) => channelOption(id, i, input.category));
     const [primary, ...alternates] = opts;
     return {
       primary,
@@ -108,8 +136,10 @@ export class FixtureBrain implements OperatorBrain {
     // Natural-looking prices (e.g. €120 / €75 / €55) instead of €119.6 / €73.75.
     const target = niceRound(analysis.estimatedMarketHigh * 0.92);
     const floor = niceRound(analysis.estimatedMarketLow);
-    const shippingAllowed = a.fulfillment !== "local-pickup";
-    const pickupAllowed = a.fulfillment !== "shipping";
+    // Seller reach override (if any) wins over the archetype default.
+    const eff = analysis.fulfillment ?? a.fulfillment;
+    const shippingAllowed = eff !== "local-pickup";
+    const pickupAllowed = eff !== "shipping";
     return {
       currency: "EUR",
       targetPrice: target,
@@ -338,7 +368,8 @@ export class FixtureBrain implements OperatorBrain {
 
   async decideFulfillment(item: Item): Promise<FulfillmentPlan> {
     const a = matchArchetype(item.analysis.title + " " + item.analysis.category);
-    if (a.fulfillment === "local-pickup") {
+    const eff = item.analysis.fulfillment ?? a.fulfillment;
+    if (eff === "local-pickup") {
       return {
         mode: "local-pickup",
         labelCost: 0,

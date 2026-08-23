@@ -18,6 +18,7 @@ export default function IntakePage() {
   const [clue, setClue] = useState("");
   const [img, setImg] = useState<string>("/img/generic.jpg");
   const [notes, setNotes] = useState("");
+  const [reach, setReach] = useState<"auto" | "shipping" | "local-pickup">("auto");
   const [phase, setPhase] = useState<Phase>("intake");
   const [busy, setBusy] = useState(false);
   const [item, setItem] = useState<Item | null>(null);
@@ -49,6 +50,7 @@ export default function IntakePage() {
         photos: [img],
         notes,
         answers: extraAnswers,
+        fulfillmentOverride: reach,
         id: extraAnswers ? item?.id : undefined,
       }),
     });
@@ -165,6 +167,31 @@ export default function IntakePage() {
               placeholder="Optional context — condition, accessories, anything obvious."
               className="mt-2 w-full rounded-sm border border-edge bg-panel2 px-4 py-3 text-sm text-ink outline-none focus:border-cash"
             />
+          </div>
+
+          <div>
+            <label className="label">Reach (optional)</label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {(
+                [
+                  { v: "auto", label: "Auto", hint: "Hermes decides" },
+                  { v: "local-pickup", label: "Pickup only", hint: "No shipping" },
+                  { v: "shipping", label: "Ship only", hint: "No pickup" },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setReach(o.v)}
+                  className={`rounded-sm border p-2 text-left ${
+                    reach === o.v ? "border-cash shadow-glow" : "border-edge"
+                  }`}
+                >
+                  <span className="block text-sm font-bold">{o.label}</span>
+                  <span className="block text-xs text-muted">{o.hint}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <button disabled={!clue || busy} onClick={() => analyze()} className="btn-cash w-full disabled:opacity-40">

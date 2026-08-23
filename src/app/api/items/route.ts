@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createItemFromIntake, ensureSeeded, getItem, listItems } from "@/lib/store";
+import { checkApiAuth } from "@/lib/auth";
 import type { ItemIntake } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = checkApiAuth(req);
+  if (denied) return denied;
   const body = (await req.json()) as Partial<ItemIntake> & { id?: string };
   if (!body?.clue || typeof body.clue !== "string") {
     return NextResponse.json({ error: "Missing 'clue'." }, { status: 400 });
@@ -19,6 +22,7 @@ export async function POST(req: NextRequest) {
     photos: body.photos?.length ? body.photos : ["/img/generic.svg"],
     notes: body.notes,
     answers: body.answers,
+    fulfillmentOverride: body.fulfillmentOverride,
   };
   // When the seller answers the critical questions, the intake UI re-submits
   // with the original item id so we OVERWRITE the same record instead of
