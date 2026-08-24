@@ -218,8 +218,9 @@ export class FixtureBrain implements OperatorBrain {
     // here toward the buyer — we never raise our ask when the buyer bids up.
     const standingAsk = lastCounter ?? p.targetPrice;
 
-    // --- Scam / off-platform / overpayment detection ---
-    const scammy = /(whatsapp|western union|bizum to|paypal friends|gift card|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick))/.test(
+    // --- Scam / off-platform / overpayment detection (EN + DE patterns) ---
+    const scammy =
+      /(whatsapp|western union|bizum to|paypal friends|paypal freunde|freundschaftszahlung|gift card|geschenkkarte|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick)|überweisung|ich zahl(e)? (dir )?(etwas )?mehr|vorkasse per|sicherheitskonto|treuhänder)/.test(
       text
     );
     if (scammy) {
