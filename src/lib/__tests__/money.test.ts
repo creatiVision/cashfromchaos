@@ -1,4 +1,35 @@
-import { niceRound, round2, parseOffer } from '../money';
+import { eur, niceRound, round2, parseOffer } from '../money';
+
+describe('eur', () => {
+  const norm = (s: string) => s.replace(/\u00A0|\u202F/g, ' ');
+
+  it('formats positive integers correctly', () => {
+    expect(norm(eur(10))).toBe('10,00 €');
+  });
+
+  it('formats zero correctly', () => {
+    expect(norm(eur(0))).toBe('0,00 €');
+  });
+
+  it('formats decimal amounts with two decimal places', () => {
+    expect(norm(eur(12.5))).toBe('12,50 €');
+    expect(norm(eur(12.99))).toBe('12,99 €');
+  });
+
+  it('rounds amounts with more than two decimal places', () => {
+    expect(norm(eur(10.999))).toBe('11,00 €');
+    expect(norm(eur(10.994))).toBe('10,99 €');
+  });
+
+  it('formats negative amounts correctly', () => {
+    expect(norm(eur(-10))).toBe('-10,00 €');
+    expect(norm(eur(-12.5))).toBe('-12,50 €');
+  });
+
+  it('formats large numbers correctly', () => {
+    expect(norm(eur(1234567.89))).toBe('1.234.567,89 €');
+  });
+});
 
 describe('niceRound', () => {
   describe('boundary conditions (n <= 0)', () => {
