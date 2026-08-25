@@ -32,8 +32,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Invalid Stripe session" }, { status: 400 });
     }
   } else {
-    // Simulated flow validation
-    if (sessionId !== `sim_${itemId}`) {
+    // Simulated / mock flow validation
+    const validSimulatedSession = sessionId === `sim_${itemId}` || sessionId === `pp_${itemId}`;
+    if (!validSimulatedSession) {
       return NextResponse.json({ error: "Invalid simulated session" }, { status: 400 });
     }
   }
