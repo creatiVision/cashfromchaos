@@ -35,9 +35,17 @@ npm run start        # serve the production build
 ```
 
 No environment variables are required — payments run in a fully **simulated
-held-payment** mode out of the box. To use real Stripe test-mode Checkout, copy
-`.env.example` to `.env.local` and set `STRIPE_SECRET_KEY` (sk_test_…). In test
-mode pay with card `4242 4242 4242 4242`, any future expiry, any CVC. The
+held-payment** mode out of the box. To use a real provider, copy `.env.example`
+to `.env.local` and set `PAYMENT_PROVIDER`:
+
+- `stripe` (default) — set `STRIPE_SECRET_KEY` (sk_test_…); test card
+  `4242 4242 4242 4242`, any future expiry, any CVC.
+- `paypal` — mock/test checkout; set `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET`.
+- `simulated` — offline demo flow, always available.
+- An unconfigured provider automatically falls back to `simulated`.
+
+Optional: set `CFC_API_TOKEN` to require `Authorization: Bearer <token>` on all
+mutating API endpoints (for machine-to-machine use via Hermes/AionUI/n8n). The
 post-payment redirect returns to whatever host you opened the app from (handy
 when serving to a phone over a LAN / Tailscale address, not just localhost).
 
@@ -60,6 +68,27 @@ browser address bar.
    funds released → net payout shown.
 
 See [`DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) for the scene-by-scene video script.
+
+## German market support
+
+The operator routes into German channels where they fit best:
+
+- **Kleinanzeigen.de** — furniture, kids/baby gear, general local demand
+- **eBay Germany** — components (GPU/CPU/RAM), collectibles, music gear in DACH
+- **PayPal Marketplace** — generalist fallback for electronics
+
+Sellers can restrict reach per item at intake (**Auto / Pickup only / Ship only**);
+the policy then blocks shipping requests or pickup accordingly. Archetypes match
+German clues directly (`Kinderwagen`, `Gitarre`, `Grafikkarte`, `Sessel`, …).
+
+## Submitting items from the CLI / agents
+
+```bash
+scripts/cfc-submit foto.jpg "guitar pedal zu verkaufen" [--reach auto|shipping|local-pickup]
+```
+
+Prints id, chosen channel, target/floor price and the item detail URL. Env:
+`CFC_URL` (target host), `CFC_API_TOKEN`, `CFC_VERBOSE=1`.
 
 ## How it’s built
 
