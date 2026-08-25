@@ -24,7 +24,9 @@ export function niceRound(n: number): number {
 /** Parse the first plausible euro amount out of free buyer text. */
 export function parseOffer(text: string): number | undefined {
   // Matches "50", "50€", "€50", "50 euros", "50.5", "1.200" (thousands), "75,50"
-  const cleaned = text.replace(/(\d)\.(\d{3})(?!\d)/g, "$1$2"); // 1.200 -> 1200
+  const cleaned = text
+    .replace(/(\d)\.(\d{3})(?!\d)/g, "$1$2") // 1.200 -> 1200
+    .replace(/\b\d+(?:[.,]\d+)?\s*v(?:olt)?\b/gi, ""); // 12V / 230 volt → specs, not offers
   const m = cleaned.match(/(?:€\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:€|eur|euros?)?/i);
   if (!m) return undefined;
   const val = parseFloat(m[1].replace(",", "."));
