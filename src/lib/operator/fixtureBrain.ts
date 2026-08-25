@@ -233,8 +233,9 @@ export class FixtureBrain implements OperatorBrain {
       };
     }
 
-    // --- Personal-info extraction → withhold until paid ---
-    const probing = /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address))/.test(
+    // --- Personal-info extraction → withhold until paid (EN + DE patterns) ---
+    const probing =
+      /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address)|deine adresse|ihre adresse|privatadresse|wohnen sie|wo wohnst|telefonnummer|handynummer|rufnummer|e-?mail-?adresse|postleitzahl|\bplz\b|schick mir deine nummer|wie heißt du|wie heissen sie|wie heißen sie|besuch( e|en) (wir )?sie|komme ich (zu dir|vorbei))/i.test(
       text
     );
     if (probing) {
