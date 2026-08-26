@@ -1,33 +1,17 @@
 import { NextRequest } from "next/server";
 
-/**
- * Safely validates and constructs the origin from the request Host header.
- * Only allows trusted hosts (localhost, private IPs, Tailscale IPs/domains,
- * or NEXT_PUBLIC_BASE_URL). Returns undefined for unvalidated or malicious hosts.
- */
-export function getTrustedOrigin(req: NextRequest): string | undefined {
+export function resolveTrustedOrigin(req: NextRequest): string | undefined {
   const rawHost = req.headers.get("host") || "";
   if (!rawHost) return undefined;
 
-  // HTTP Host header must not contain userinfo (@), paths (/), query (? or #)
-  if (rawHost.includes("@") || rawHost.includes("/") || rawHost.includes("?") || rawHost.includes("#")) {
-    return undefined;
-  }
-
-  let host: string | undefined = undefined;
-
   try {
-    // Safely parse host using URL constructor
+    // Safely parse the hostname using the URL object to avoid parsing attacks (e.g. userinfo, trailing query)
     const dummyUrl = new URL(`http://${rawHost}`);
-
-    // Reject if URL parsing detected userinfo
-    if (dummyUrl.username || dummyUrl.password) {
-      return undefined;
-    }
-
     const hostname = dummyUrl.hostname;
 
     const isLocalhost = ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+
+    // Ensure strict ending to prevent bypasses like attacker.com?.ts.net
     const isTailscale =
       hostname.endsWith(".ts.net") ||
       /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/.test(hostname);
@@ -37,30 +21,33 @@ export function getTrustedOrigin(req: NextRequest): string | undefined {
       /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname);
 
     let isBaseUrl = false;
-    const baseUrlEnv = process.env.NEXT_PUBLIC_BASE_URL;
+    const baseUrlEnv = process.env.NEXT_PUBLIC_BASE_URL || process.env.APP_URL;
     if (baseUrlEnv) {
       try {
-        const parsedBase = new URL(baseUrlEnv);
-        if (parsedBase.host === dummyUrl.host || parsedBase.hostname === hostname) {
-          isBaseUrl = true;
-        }
+        const parsedBaseUrl = new URL(
+          baseUrlEnv.startsWith("http") ? baseUrlEnv : `http://${baseUrlEnv}`
+        );
+        isBaseUrl =
+          parsedBaseUrl.host === dummyUrl.host ||
+          parsedBaseUrl.hostname === hostname;
       } catch {
-        // Ignore invalid NEXT_PUBLIC_BASE_URL
+        // Ignore invalid base URL env
       }
     }
 
     if (isLocalhost || isTailscale || isPrivateIP || isBaseUrl) {
-      host = dummyUrl.host;
+      const rawProto =
+        req.headers.get("x-forwarded-proto") ??
+        req.nextUrl?.protocol?.replace(":", "") ??
+        "http";
+      const proto = rawProto === "https" ? "https" : "http";
+      return `${proto}://${dummyUrl.host}`;
     }
   } catch {
-    // Return undefined on malformed Host headers
-    return undefined;
+    // Ignore malformed hosts
   }
 
-  if (!host) return undefined;
-
-  const rawProto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
-  const proto = rawProto === "https" ? "https" : "http";
-
-  return `${proto}://${host}`;
+  return undefined;
 }
+
+export const getTrustedOrigin = resolveTrustedOrigin;

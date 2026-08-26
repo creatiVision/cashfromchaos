@@ -20,12 +20,7 @@ import type {
   OperatorBrain,
 } from "@/lib/types";
 import { getAdapter } from "@/lib/marketplace/registry";
-import { matchArchetype, findArchetype, type Archetype } from "@/lib/operator/archetypes";
-
-/** Reuse the archetype recorded on the analysis; fall back to re-matching. */
-function archetypeOf(id: string | undefined, fallbackClue: string): Archetype {
-  return (id && findArchetype(id)) || matchArchetype(fallbackClue);
-}
+import { matchArchetype, type Archetype } from "@/lib/operator/archetypes";
 
 function channelOption(id: string, rank: number, category: string): MarketplaceOption {
   const a = getAdapter(id);
@@ -108,12 +103,11 @@ export class FixtureBrain implements OperatorBrain {
       estimatedMarketLow: low,
       estimatedMarketHigh: high,
       fulfillment: eff,
-      archetypeId: a.id,
     };
   }
 
   async chooseMarketplace(input: ItemAnalysis): Promise<MarketplacePlan> {
-    const a = archetypeOf(input.archetypeId, input.title + " " + input.category);
+    const a = matchArchetype(input.title + " " + input.category);
     const eff = input.fulfillment ?? a.fulfillment;
     // Rank compatible channels first; keep the rest as fallbacks.
     const fits = (id: string) => {
@@ -137,7 +131,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async buildPolicy(analysis: ItemAnalysis, plan: MarketplacePlan): Promise<CommercePolicy> {
-    const a = archetypeOf(analysis.archetypeId, analysis.title + " " + analysis.category);
+    const a = matchArchetype(analysis.title + " " + analysis.category);
     const mid = (analysis.estimatedMarketLow + analysis.estimatedMarketHigh) / 2;
     // Natural-looking prices (e.g. €120 / €75 / €55) instead of €119.6 / €73.75.
     const target = niceRound(analysis.estimatedMarketHigh * 0.92);
@@ -218,9 +212,8 @@ export class FixtureBrain implements OperatorBrain {
     // here toward the buyer — we never raise our ask when the buyer bids up.
     const standingAsk = lastCounter ?? p.targetPrice;
 
-    // --- Scam / off-platform / overpayment detection (EN + DE patterns) ---
-    const scammy =
-      /(whatsapp|western union|bizum to|paypal friends|paypal freunde|freundschaftszahlung|gift card|geschenkkarte|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick)|überweisung|ich zahl(e)? (dir )?(etwas )?mehr|vorkasse per|sicherheitskonto|treuhänder)/.test(
+    // --- Scam / off-platform / overpayment detection ---
+    const scammy = /(whatsapp|western union|bizum to|paypal friends|gift card|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick))/.test(
       text
     );
     if (scammy) {
@@ -233,9 +226,8 @@ export class FixtureBrain implements OperatorBrain {
       };
     }
 
-    // --- Personal-info extraction → withhold until paid (EN + DE patterns) ---
-    const probing =
-      /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address)|deine adresse|ihre adresse|privatadresse|wohnen sie|wo wohnst|telefonnummer|handynummer|rufnummer|e-?mail-?adresse|postleitzahl|\bplz\b|schick mir deine nummer|wie heißt du|wie heissen sie|wie heißen sie|besuch( e|en) (wir )?sie|komme ich (zu dir|vorbei))/i.test(
+    // --- Personal-info extraction → withhold until paid ---
+    const probing = /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address))/.test(
       text
     );
     if (probing) {
@@ -375,7 +367,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async decideFulfillment(item: Item): Promise<FulfillmentPlan> {
-    const a = archetypeOf(item.analysis.archetypeId, item.analysis.title + " " + item.analysis.category);
+    const a = matchArchetype(item.analysis.title + " " + item.analysis.category);
     const eff = item.analysis.fulfillment ?? a.fulfillment;
     if (eff === "local-pickup") {
       return {

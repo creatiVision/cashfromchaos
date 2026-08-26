@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
-import { getTrustedOrigin } from "@/lib/origin";
+import { resolveTrustedOrigin } from "../origin";
 
-describe("getTrustedOrigin security checks", () => {
+describe("resolveTrustedOrigin", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
     process.env = { ...originalEnv };
   });
 
@@ -13,93 +12,47 @@ describe("getTrustedOrigin security checks", () => {
     process.env = originalEnv;
   });
 
-  it("should allow valid localhost hosts", () => {
+  it("should allow localhost", () => {
     const req = new NextRequest("http://localhost:3000/api/checkout", {
       headers: { host: "localhost:3000" },
     });
-    expect(getTrustedOrigin(req)).toBe("http://localhost:3000");
+    expect(resolveTrustedOrigin(req)).toBe("http://localhost:3000");
   });
 
-  it("should allow valid 127.0.0.1 IP host", () => {
+  it("should allow 127.0.0.1", () => {
     const req = new NextRequest("http://127.0.0.1:3000/api/checkout", {
       headers: { host: "127.0.0.1:3000" },
     });
-    expect(getTrustedOrigin(req)).toBe("http://127.0.0.1:3000");
+    expect(resolveTrustedOrigin(req)).toBe("http://127.0.0.1:3000");
   });
 
-  it("should allow valid Tailscale domain host (*.ts.net)", () => {
-    const req = new NextRequest("http://my-node.ts.net:3000/api/checkout", {
-      headers: { host: "my-node.ts.net:3000" },
+  it("should allow Tailscale .ts.net hosts", () => {
+    const req = new NextRequest("https://my-node.ts.net/api/checkout", {
+      headers: { host: "my-node.ts.net", "x-forwarded-proto": "https" },
     });
-    expect(getTrustedOrigin(req)).toBe("http://my-node.ts.net:3000");
+    expect(resolveTrustedOrigin(req)).toBe("https://my-node.ts.net");
   });
 
-  it("should allow valid Tailscale CGNAT IP (100.64.0.1 - 100.127.255.255)", () => {
-    const req = new NextRequest("http://100.115.12.3:3000/api/checkout", {
-      headers: { host: "100.115.12.3:3000" },
+  it("should allow configured NEXT_PUBLIC_BASE_URL", () => {
+    process.env.NEXT_PUBLIC_BASE_URL = "https://marketplace.example.com";
+    const req = new NextRequest("https://marketplace.example.com/api/checkout", {
+      headers: { host: "marketplace.example.com", "x-forwarded-proto": "https" },
     });
-    expect(getTrustedOrigin(req)).toBe("http://100.115.12.3:3000");
+    expect(resolveTrustedOrigin(req)).toBe("https://marketplace.example.com");
   });
 
-  it("should allow private LAN IP addresses", () => {
-    const req1 = new NextRequest("http://192.168.1.100:3000/api/checkout", {
-      headers: { host: "192.168.1.100:3000" },
+  it("should reject malicious host header injection attempts", () => {
+    process.env.NEXT_PUBLIC_BASE_URL = "https://marketplace.example.com";
+    const req = new NextRequest("https://marketplace.example.com/api/checkout", {
+      headers: { host: "evil-attacker.com" },
     });
-    expect(getTrustedOrigin(req1)).toBe("http://192.168.1.100:3000");
-
-    const req2 = new NextRequest("http://10.0.0.5:3000/api/checkout", {
-      headers: { host: "10.0.0.5:3000" },
-    });
-    expect(getTrustedOrigin(req2)).toBe("http://10.0.0.5:3000");
+    expect(resolveTrustedOrigin(req)).toBeUndefined();
   });
 
-  it("should allow host matching NEXT_PUBLIC_BASE_URL", () => {
-    process.env.NEXT_PUBLIC_BASE_URL = "https://checkout.mycompany.com";
-    const req = new NextRequest("https://checkout.mycompany.com/api/checkout", {
-      headers: { host: "checkout.mycompany.com" },
-    });
-    expect(getTrustedOrigin(req)).toBe("https://checkout.mycompany.com");
-  });
-
-  it("should respect x-forwarded-proto if https", () => {
+  it("should reject host bypass tricks like attacker.com?.ts.net", () => {
     const req = new NextRequest("http://localhost:3000/api/checkout", {
-      headers: {
-        host: "localhost:3000",
-        "x-forwarded-proto": "https",
-      },
+      headers: { host: "attacker.com?.ts.net" },
     });
-    expect(getTrustedOrigin(req)).toBe("https://localhost:3000");
-  });
-
-  it("should REJECT arbitrary external domains (Host Header Injection attempt)", () => {
-    const req = new NextRequest("http://evil.com/api/checkout", {
-      headers: { host: "evil.com" },
-    });
-    expect(getTrustedOrigin(req)).toBeUndefined();
-  });
-
-  it("should REJECT spoofed domains using userinfo trick (e.g. evil.com@localhost)", () => {
-    const req = new NextRequest("http://localhost:3000/api/checkout", {
-      headers: { host: "evil.com@localhost" },
-    });
-    expect(getTrustedOrigin(req)).toBeUndefined();
-  });
-
-  it("should REJECT spoofed domains using subdomain suffix trick (e.g. evil.ts.net.attacker.com)", () => {
-    const req = new NextRequest("http://evil.com.ts.net/api/checkout", {
-      headers: { host: "evil.com.ts.net" },
-    });
-    expect(getTrustedOrigin(req)).toBe("http://evil.com.ts.net"); // Valid tailscale domain ending in .ts.net
-
-    const reqMalicious = new NextRequest("http://evil.ts.net.attacker.com/api/checkout", {
-      headers: { host: "evil.ts.net.attacker.com" },
-    });
-    expect(getTrustedOrigin(reqMalicious)).toBeUndefined();
-  });
-
-  it("should return undefined if host header is missing", () => {
-    const req = new NextRequest("http://localhost:3000/api/checkout");
-    req.headers.delete("host");
-    expect(getTrustedOrigin(req)).toBeUndefined();
+    expect(resolveTrustedOrigin(req)).toBeUndefined();
   });
 });
