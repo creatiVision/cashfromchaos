@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Build the post-payment redirect from the host the buyer actually used, so
-  // Stripe returns them to the same address (Tailscale IP / MagicDNS / localhost)
-  // while rejecting untrusted Host header injection attempts.
+  // Stripe returns them to the same address (Tailscale IP / MagicDNS / localhost).
+  // Origin is strictly validated to prevent host header injection vulnerabilities.
   const origin = resolveTrustedOrigin(req);
 
   const session = await createCheckout(item, origin);
