@@ -5,7 +5,6 @@ describe("resolveTrustedOrigin", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
     process.env = { ...originalEnv };
   });
 

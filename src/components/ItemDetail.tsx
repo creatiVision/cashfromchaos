@@ -366,11 +366,7 @@ function PaymentTab({ item }: { item: Item }) {
       </div>
       <p className="mt-3 text-xs text-muted">
         Escrow-like marketplace flow for demo purposes: funds are held after checkout and released
-        to the seller on delivery confirmation.{" "}
-        {pay.provider === "simulated" &&
-          "(Simulated — set STRIPE_SECRET_KEY or PAYMENT_PROVIDER for a real provider.)"}
-        {pay.provider === "stripe" && "(Stripe test mode.)"}
-        {pay.provider === "paypal" && "(PayPal test/mock checkout.)"}
+        to the seller on delivery confirmation. {pay.provider === "simulated" && "(Simulated — set STRIPE_SECRET_KEY for real test-mode Checkout.)"}
       </p>
     </Section>
   );

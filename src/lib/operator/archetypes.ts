@@ -38,7 +38,7 @@ export interface Archetype {
 export const ARCHETYPES: Archetype[] = [
   {
     id: "pokemon-cards",
-    keywords: ["pokemon", "pokémon", "card", "cards", "tcg", "trading card", "binder", "karte", "karten", "sammelkarten", "sammelalbum"],
+    keywords: ["pokemon", "pokémon", "card", "cards", "tcg", "trading card", "binder"],
     title: "Pokémon Trading Card Binder",
     category: "collectibles / trading cards",
     confidence: "medium-high",
@@ -83,7 +83,7 @@ export const ARCHETYPES: Archetype[] = [
   },
   {
     id: "guitar-pedal",
-    keywords: ["pedal", "guitar", "effects", "stompbox", "overdrive", "amp", "music", "synth", "gitarre", "effektpedal", "verstärker", "musik", "synthesizer"],
+    keywords: ["pedal", "guitar", "effects", "stompbox", "overdrive", "amp", "music", "synth"],
     title: "Guitar Effects Pedal",
     category: "musical instruments / gear",
     confidence: "high",
@@ -131,7 +131,7 @@ export const ARCHETYPES: Archetype[] = [
     keywords: [
       "garmin", "vivoactive", "vívoactive", "forerunner", "fenix", "fēnix", "instinct", "venu",
       "fitbit", "apple watch", "smartwatch", "smart watch", "wearable", "polar", "galaxy watch",
-      "amazfit", "suunto", "watch", "tracker", "uhr", "fitnessuhr", "fitnesstracker",
+      "amazfit", "suunto", "watch", "tracker",
     ],
     title: "GPS Smartwatch / Fitness Watch",
     category: "electronics / wearables",
@@ -184,7 +184,7 @@ export const ARCHETYPES: Archetype[] = [
   },
   {
     id: "furniture",
-    keywords: ["chair", "sofa", "table", "desk", "furniture", "shelf", "wardrobe", "couch", "cabinet", "stuhl", "tisch", "regal", "schrank", "kommode", "möbel", "sessel"],
+    keywords: ["chair", "sofa", "table", "desk", "furniture", "shelf", "wardrobe", "couch", "cabinet"],
     title: "Furniture Piece",
     category: "home / furniture",
     confidence: "medium-high",
@@ -223,7 +223,7 @@ export const ARCHETYPES: Archetype[] = [
   },
   {
     id: "stroller",
-    keywords: ["stroller", "pram", "buggy", "pushchair", "kid", "baby", "toy", "child", "kinderwagen", "kinderbett", "kind", "baby", "spielzeug"],
+    keywords: ["stroller", "pram", "buggy", "pushchair", "kid", "baby", "toy", "child"],
     title: "Children's Stroller",
     category: "kids / baby gear",
     confidence: "medium-high",
@@ -259,103 +259,6 @@ export const ARCHETYPES: Archetype[] = [
       },
     ],
     image: "/img/stroller.svg",
-  },
-  {
-    id: "desktop-pc",
-    keywords: [
-      "pc", "desktop", "desktop pc", "computer", "rechner", "gaming pc", "workstation",
-      "all-in-one", "tower", "complete pc", "pc komplett", "rechnerturm", "apple imac", "imac",
-    ],
-    title: "Desktop PC / Workstation",
-    category: "computers / desktop systems",
-    confidence: "high",
-    defaultCondition: "good",
-    attributes: {
-      type: "Desktop PC",
-      specs: "CPU/GPU/RAM — confirm exact config",
-      os: "license/installed OS — confirm",
-      working: "unknown — needs confirmation",
-    },
-    rationale: [
-      "Complete PCs sell on spec: CPU, GPU and RAM size decide the price band.",
-      "Heavy-ish but shippable; German platforms (Kleinanzeigen/eBay DE) have the deepest used-PC demand.",
-      "Data wipe is mandatory before handover — buyers check this.",
-    ],
-    flags: ["condition-sensitive", "data-wipe-recommended"],
-    marketLow: 60,
-    marketHigh: 350,
-    channels: ["kleinanzeigen-mock", "ebay-de-mock", "paypal-mock"],
-    bundleRecommended: false,
-    strategy: [
-      "German generalist first (Kleinanzeigen), eBay DE for gaming/workstation specs.",
-      "Lead listing on CPU/GPU/RAM — those three set the price.",
-      "Factory-reset all drives; note whether keyboard/mouse are included.",
-    ],
-    fulfillment: "either",
-    questions: [
-      {
-        id: "specs",
-        reason: "CPU + GPU + RAM decide the price band; the photo can't confirm them.",
-        question: "What are the specs — CPU, GPU, how much RAM?",
-        options: ["I'll check", "In the clue", "Not sure"],
-      },
-      {
-        id: "working",
-        reason: "Boots-clean vs. defects changes the band entirely; 'for parts' halves it.",
-        question: "Does it boot and run cleanly (no beeps, no artifacts)?",
-        options: ["Runs perfectly", "Minor issues", "For parts only"],
-      },
-    ],
-    image: "/img/generic.svg",
-  },
-  {
-    id: "pc-components",
-    keywords: [
-      "gpu", "graphics card", "grafikkarte", "cpu", "processor", "prozessor",
-      "mainboard", "motherboard", "ram", "ddr4", "ddr5", "psu", "netzteil",
-      "ssd", "hard drive", "festplatte", "nvme", "pc part", "pc teile", "komponente", "komponenten",
-    ],
-    title: "PC Component (GPU / CPU / RAM / …)",
-    category: "computers / components",
-    confidence: "high",
-    defaultCondition: "good",
-    attributes: {
-      type: "PC component",
-      model: "exact model — confirm from photo/clue",
-      compatibility: "socket / generation — matters to buyers",
-      working: "unknown — needs confirmation",
-    },
-    rationale: [
-      "Components ship small and light with strong eBay demand — the ideal shipping item.",
-      "Exact model + generation set the price; a photo of the label/board settles it.",
-      "Tested-and-working claims materially lift the achievable price.",
-    ],
-    flags: ["condition-sensitive", "static-sensitive"],
-    marketLow: 25,
-    marketHigh: 250,
-    channels: ["ebay-de-mock", "kleinanzeigen-mock", "paypal-mock"],
-    bundleRecommended: false,
-    strategy: [
-      "eBay DE first — component buyers search by exact model there.",
-      "State exact model, generation/socket and tested-working status in the listing.",
-      "Anti-static packaging, tracked shipping — small but fragile goods.",
-    ],
-    fulfillment: "shipping",
-    questions: [
-      {
-        id: "model",
-        reason: "The exact model decides the price band; photos rarely show it fully.",
-        question: "What's the exact model (e.g. RTX 3060, Ryzen 5 5600, 2×8GB DDR4-3200)?",
-        options: ["I'll check the label", "It's in the clue", "Not sure"],
-      },
-      {
-        id: "tested",
-        reason: "Tested/working vs. untested moves the price strongly either way.",
-        question: "Was it tested in a running system recently?",
-        options: ["Yes, works", "Untested", "Known defect"],
-      },
-    ],
-    image: "/img/generic.svg",
   },
 ];
 
@@ -405,8 +308,4 @@ export function matchArchetype(clue: string): Archetype {
     if (score > 0 && (!best || score > best.score)) best = { a, score };
   }
   return best ? best.a : GENERIC_ARCHETYPE;
-}
-
-export function findArchetype(id: string): Archetype | undefined {
-  return ARCHETYPES.find((a) => a.id === id);
 }

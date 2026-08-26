@@ -71,22 +71,6 @@ Closing line on camera:
 > “I didn’t create a listing. I didn’t negotiate. I didn’t manage payment.
 > I just shipped the thing.”
 
-## Optional scenes — German market (if targeting the DE story)
-
-**Reach override at intake (10s):** On `/intake`, show the **Reach** selector and
-pick **Pickup only** on a furniture item. The routing then leads with
-Kleinanzeigen-style local channels and the policy flips to *no shipping* —
-a buyer asking “können Sie versenden?” gets refused live.
-
-**German clue matching (5s):** Type the clue in German (“Kinderwagen zu
-verschenken” / “Grafikkarte abzugeben”) — analysis, channel pick and listing
-come out German-aware without any config.
-
-**PayPal checkout option (10s):** With `PAYMENT_PROVIDER=paypal` in `.env.local`,
-Scene 6 becomes **Pay with PayPal (mock)** — same held-payment custody, different
-front-end. Fallback note: an unconfigured provider silently degrades to simulated,
-so the demo never breaks on stage.
-
 ---
 
 ### Status reference

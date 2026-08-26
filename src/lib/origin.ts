@@ -1,10 +1,5 @@
 import { NextRequest } from "next/server";
 
-/**
- * Safely validates and constructs the origin from the request Host header.
- * Only allows trusted hosts (localhost, private IPs, Tailscale IPs/domains,
- * or NEXT_PUBLIC_BASE_URL/APP_URL). Returns undefined for unvalidated or malicious hosts.
- */
 export function resolveTrustedOrigin(req: NextRequest): string | undefined {
   const rawHost = req.headers.get("host") || "";
   if (!rawHost) return undefined;
@@ -55,5 +50,4 @@ export function resolveTrustedOrigin(req: NextRequest): string | undefined {
   return undefined;
 }
 
-// Backward compatibility alias
 export const getTrustedOrigin = resolveTrustedOrigin;
