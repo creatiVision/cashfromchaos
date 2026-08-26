@@ -3,7 +3,7 @@ import { ensureSeeded, getItem, saveItem, trace } from "@/lib/store";
 import { createCheckout } from "@/lib/payments";
 import { eur } from "@/lib/money";
 import { checkApiAuth } from "@/lib/auth";
-import { getTrustedOrigin } from "@/lib/origin";
+import { resolveTrustedOrigin } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Build the post-payment redirect from the host the buyer actually used, so
-  // Stripe returns them to the same address (Tailscale IP / MagicDNS / localhost).
-  // Origin is strictly validated to prevent host header injection vulnerabilities.
-  const origin = getTrustedOrigin(req);
+  // Stripe returns them to the same address (Tailscale IP / MagicDNS / localhost)
+  // while rejecting untrusted Host header injection attempts.
+  const origin = resolveTrustedOrigin(req);
 
   const session = await createCheckout(item, origin);
   item.payment = {
