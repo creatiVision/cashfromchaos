@@ -1,57 +1,50 @@
-// ============================================================================
-// Item archetypes — the operator's product knowledge.
-// Keyword-driven so the fixture brain can route ANY seller clue, while the
-// three demo items (collectible / music / bulky-local) hit rich, cinematic
-// paths. Each archetype encodes category knowledge: where it sells, the price
-// band, fulfillment posture, and the critical questions worth asking.
-// ============================================================================
-
-import type {
-  Confidence,
-  CriticalQuestion,
-  FulfillmentMode,
-  ItemCondition,
-} from "@/lib/types";
+export interface ArchetypeQuestion {
+  id: string;
+  reason: string;
+  question: string;
+  options: string[];
+}
 
 export interface Archetype {
   id: string;
   keywords: string[];
   title: string;
   category: string;
-  confidence: Confidence;
-  defaultCondition: ItemCondition;
+  confidence: "high" | "medium-high" | "medium";
+  defaultCondition: "like-new" | "good";
   attributes: Record<string, string>;
   rationale: string[];
   flags: string[];
   marketLow: number;
   marketHigh: number;
-  /** ranked channel ids, best first */
   channels: string[];
   bundleRecommended: boolean;
   strategy: string[];
-  fulfillment: FulfillmentMode;
-  questions: CriticalQuestion[];
-  /** image used in fixtures + sandbox */
+  fulfillment: "shipping" | "local-pickup" | "either";
+  questions: ArchetypeQuestion[];
   image: string;
 }
 
 export const ARCHETYPES: Archetype[] = [
   {
     id: "pokemon-cards",
-    keywords: ["pokemon", "pokémon", "card", "cards", "tcg", "trading card", "binder"],
-    title: "Pokémon Trading Card Binder",
+    keywords: [
+      "pokemon", "pokémon", "charizard", "pikachu", "holo", "holofoil", "booster",
+      "binder", "tcg", "trading cards", "cards", "graded", "psa", "bgs", "cgc",
+      "wotc", "first edition", "1st edition", "shining", "gold star",
+    ],
+    title: "Collectible Trading Cards (e.g. Pokémon)",
     category: "collectibles / trading cards",
-    confidence: "medium-high",
+    confidence: "high",
     defaultCondition: "good",
     attributes: {
-      type: "Trading cards (bundle)",
-      visibleCount: "~120 cards",
-      language: "unknown — needs confirmation",
-      notableCards: "possible holos — needs close-ups",
+      type: "Trading cards bundle / binder",
+      era: "confirm era from photos (e.g. WOTC vs modern)",
+      condition: "varies by card — inspect edges/surface",
+      rares: "unknown — photos show subset only",
     },
     rationale: [
-      "Detected a trading-card binder — value is driven by a few rare cards, not the bulk.",
-      "Local generalist marketplaces underprice collectibles; collector channels pay more.",
+      "Generalist marketplaces underprice collectibles; collector channels pay more.",
       "Recommend bundle listing unless close-ups reveal high-value singles to split out.",
     ],
     flags: ["authenticity-sensitive", "value-in-tail"],
@@ -300,12 +293,54 @@ export const GENERIC_ARCHETYPE: Archetype = {
   image: "/img/generic.svg",
 };
 
+interface PreprocessedArchetype {
+  archetype: Archetype;
+  keywords: string[];
+  lengths: number[];
+  maxScore: number;
+}
+
+const PREPROCESSED_ARCHETYPES: PreprocessedArchetype[] = ARCHETYPES.map((a) => {
+  const keywords = a.keywords.map((k) => k.toLowerCase());
+  const lengths = keywords.map((k) => k.length);
+  const maxScore = lengths.reduce((sum, len) => sum + len, 0);
+  return {
+    archetype: a,
+    keywords,
+    lengths,
+    maxScore,
+  };
+});
+
 export function matchArchetype(clue: string): Archetype {
   const c = clue.toLowerCase();
-  let best: { a: Archetype; score: number } | null = null;
-  for (const a of ARCHETYPES) {
-    const score = a.keywords.reduce((acc, k) => (c.includes(k) ? acc + k.length : acc), 0);
-    if (score > 0 && (!best || score > best.score)) best = { a, score };
+  let bestArchetype: Archetype | null = null;
+  let bestScore = 0;
+
+  for (let i = 0; i < PREPROCESSED_ARCHETYPES.length; i++) {
+    const item = PREPROCESSED_ARCHETYPES[i];
+
+    // Early prune: if the archetype's maximum possible score cannot beat
+    // the current best score, we can skip evaluating its keywords entirely.
+    if (item.maxScore <= bestScore) {
+      continue;
+    }
+
+    let score = 0;
+    const keywords = item.keywords;
+    const lengths = item.lengths;
+
+    for (let j = 0; j < keywords.length; j++) {
+      if (c.includes(keywords[j])) {
+        score += lengths[j];
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestArchetype = item.archetype;
+    }
   }
-  return best ? best.a : GENERIC_ARCHETYPE;
+
+  return bestArchetype ?? GENERIC_ARCHETYPE;
 }
