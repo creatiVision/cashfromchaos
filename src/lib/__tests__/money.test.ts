@@ -5,6 +5,7 @@ describe('niceRound', () => {
     it.each([
       [0, 0],
       [-0.0001, 0],
+      [-0.01, 0],
       [-0.5, 0],
       [-1, 0],
       [-5, 0],
@@ -19,12 +20,14 @@ describe('niceRound', () => {
   describe('Branch 2: values strictly between 0 and 30 (0 < n < 30)', () => {
     it.each([
       [0.0001, 1], // Minimum positive price ensures at least 1
+      [0.001, 1],
       [0.1, 1],
       [0.4, 1], // Math.round(0.4) is 0 -> Math.max(1, 0) is 1
       [0.49, 1],
       [0.5, 1], // Math.round(0.5) is 1
       [0.99, 1],
       [1, 1],
+      [1.2, 1],
       [1.4, 1],
       [1.5, 2],
       [18.4, 18],
@@ -34,6 +37,7 @@ describe('niceRound', () => {
       [29.49, 29],
       [29.5, 30],
       [29.9, 30],
+      [29.99, 30],
       [29.999, 30],
     ])('rounds %p to %p (whole numbers, min 1)', (input, expected) => {
       expect(niceRound(input)).toBe(expected);
@@ -44,6 +48,7 @@ describe('niceRound', () => {
     it.each([
       [30, 30],
       [30.0, 30],
+      [30.1, 30],
       [32.4, 30],
       [32.49, 30],
       [32.5, 35],
@@ -51,11 +56,16 @@ describe('niceRound', () => {
       [37.49, 35],
       [37.5, 40],
       [38, 40],
+      [72.4, 70],
       [73.75, 75],
       [100, 100],
       [110.72, 110],
+      [112.49, 110],
       [112.5, 115],
+      [500, 500],
       [999.9, 1000],
+      [999.99, 1000],
+      [1234.56, 1235],
     ])('snaps %p to nearest 5: %p', (input, expected) => {
       expect(niceRound(input)).toBe(expected);
     });
