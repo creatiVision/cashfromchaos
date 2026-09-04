@@ -1,68 +1,73 @@
 import { niceRound } from '../money';
 
 describe('niceRound', () => {
-  describe('zero and negative numbers (n <= 0)', () => {
-    it('returns 0 for zero', () => {
-      expect(niceRound(0)).toBe(0);
-    });
-
-    it('returns 0 for negative integers and decimals', () => {
-      expect(niceRound(-0.01)).toBe(0);
-      expect(niceRound(-1)).toBe(0);
-      expect(niceRound(-5)).toBe(0);
-      expect(niceRound(-18.4)).toBe(0);
-      expect(niceRound(-100)).toBe(0);
-    });
-  });
-
-  describe('low-value items under 30 (0 < n < 30)', () => {
-    it('enforces a minimum of 1 for positive numbers close to 0', () => {
-      expect(niceRound(0.001)).toBe(1);
-      expect(niceRound(0.1)).toBe(1);
-      expect(niceRound(0.49)).toBe(1);
-      expect(niceRound(0.5)).toBe(1);
-    });
-
-    it('rounds to the nearest whole integer for numbers between 1 and 29', () => {
-      expect(niceRound(1.2)).toBe(1);
-      expect(niceRound(1.5)).toBe(2);
-      expect(niceRound(18.4)).toBe(18);
-      expect(niceRound(18.5)).toBe(19);
-      expect(niceRound(29.4)).toBe(29);
-    });
-
-    it('rounds numbers close to 30 correctly', () => {
-      expect(niceRound(29.5)).toBe(30);
-      expect(niceRound(29.9)).toBe(30);
-      expect(niceRound(29.99)).toBe(30);
+  describe('Branch 1: zero and negative values (n <= 0)', () => {
+    it.each([
+      [0, 0],
+      [-0.0001, 0],
+      [-0.01, 0],
+      [-0.5, 0],
+      [-1, 0],
+      [-5, 0],
+      [-18.4, 0],
+      [-100, 0],
+      [-Number.MAX_VALUE, 0],
+    ])('returns 0 for %p', (input, expected) => {
+      expect(niceRound(input)).toBe(expected);
     });
   });
 
-  describe('mid-to-high value items (n >= 30)', () => {
-    it('handles exact boundary at 30', () => {
-      expect(niceRound(30)).toBe(30);
+  describe('Branch 2: values strictly between 0 and 30 (0 < n < 30)', () => {
+    it.each([
+      [0.0001, 1], // Minimum positive price ensures at least 1
+      [0.001, 1],
+      [0.1, 1],
+      [0.4, 1], // Math.round(0.4) is 0 -> Math.max(1, 0) is 1
+      [0.49, 1],
+      [0.5, 1], // Math.round(0.5) is 1
+      [0.99, 1],
+      [1, 1],
+      [1.2, 1],
+      [1.4, 1],
+      [1.5, 2],
+      [18.4, 18],
+      [18.5, 19],
+      [29, 29],
+      [29.4, 29],
+      [29.49, 29],
+      [29.5, 30],
+      [29.9, 30],
+      [29.99, 30],
+      [29.999, 30],
+    ])('rounds %p to %p (whole numbers, min 1)', (input, expected) => {
+      expect(niceRound(input)).toBe(expected);
     });
+  });
 
-    it('snaps down to the nearest multiple of 5 when decimal/fraction is below half step', () => {
-      expect(niceRound(30.1)).toBe(30);
-      expect(niceRound(32.4)).toBe(30);
-      expect(niceRound(32.49)).toBe(30);
-      expect(niceRound(72.4)).toBe(70);
-      expect(niceRound(112.49)).toBe(110);
-    });
-
-    it('snaps up to the nearest multiple of 5 when at or above half step', () => {
-      expect(niceRound(32.5)).toBe(35);
-      expect(niceRound(37.5)).toBe(40);
-      expect(niceRound(73.75)).toBe(75);
-      expect(niceRound(110.72)).toBe(110);
-      expect(niceRound(112.5)).toBe(115);
-    });
-
-    it('handles large numbers accurately', () => {
-      expect(niceRound(500)).toBe(500);
-      expect(niceRound(999.99)).toBe(1000);
-      expect(niceRound(1234.56)).toBe(1235);
+  describe('Branch 3: values equal to or greater than 30 (n >= 30)', () => {
+    it.each([
+      [30, 30],
+      [30.0, 30],
+      [30.1, 30],
+      [32.4, 30],
+      [32.49, 30],
+      [32.5, 35],
+      [33, 35],
+      [37.49, 35],
+      [37.5, 40],
+      [38, 40],
+      [72.4, 70],
+      [73.75, 75],
+      [100, 100],
+      [110.72, 110],
+      [112.49, 110],
+      [112.5, 115],
+      [500, 500],
+      [999.9, 1000],
+      [999.99, 1000],
+      [1234.56, 1235],
+    ])('snaps %p to nearest 5: %p', (input, expected) => {
+      expect(niceRound(input)).toBe(expected);
     });
   });
 });
