@@ -80,19 +80,26 @@ describe("round2", () => {
     expect(round2(0)).toBe(0);
   });
 
-  it("rounds decimals to 2 decimal places", () => {
+  it("rounds decimal numbers correctly (e.g. 10.123 -> 10.12, 10.125 -> 10.13)", () => {
+    expect(round2(10.123)).toBe(10.12);
+    expect(round2(10.125)).toBe(10.13);
     expect(round2(10.555)).toBe(10.56);
     expect(round2(10.554)).toBe(10.55);
     expect(round2(10.256)).toBe(10.26);
     expect(round2(10.254)).toBe(10.25);
+    expect(round2(1.004)).toBe(1);
   });
 
   it("handles floating point precision quirks", () => {
     expect(round2(0.1 + 0.2)).toBe(0.3);
     expect(round2(0.1 + 0.7)).toBe(0.8);
+    // Note: 1.005 * 100 in JS is 100.49999999999999, so Math.round evaluates to 100 -> 1
+    expect(round2(1.005)).toBe(1);
   });
 
   it("handles negative numbers", () => {
+    expect(round2(-10.123)).toBe(-10.12);
+    expect(round2(-10.125)).toBe(-10.12);
     expect(round2(-10.256)).toBe(-10.26);
     expect(round2(-10.555)).toBe(-10.55);
     expect(round2(-10.556)).toBe(-10.56);
