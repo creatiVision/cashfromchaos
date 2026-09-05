@@ -51,6 +51,8 @@ describe("eur", () => {
 
 describe("round2", () => {
   it("rounds numbers to 2 decimal places", () => {
+    expect(round2(10.123)).toBe(10.12);
+    expect(round2(10.125)).toBe(10.13);
     expect(round2(12.3456)).toBe(12.35);
     expect(round2(12.341)).toBe(12.34);
     expect(round2(10.556)).toBe(10.56);
