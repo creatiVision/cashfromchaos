@@ -1,7 +1,7 @@
-import { niceRound } from '../money';
+import { niceRound, round2, parseOffer } from "../money";
 
-describe('niceRound', () => {
-  describe('Branch 1: zero and negative values (n <= 0)', () => {
+describe("niceRound", () => {
+  describe("Branch 1: zero and negative values (n <= 0)", () => {
     it.each([
       [0, 0],
       [-0.0001, 0],
@@ -12,12 +12,12 @@ describe('niceRound', () => {
       [-18.4, 0],
       [-100, 0],
       [-Number.MAX_VALUE, 0],
-    ])('returns 0 for %p', (input, expected) => {
+    ])("returns 0 for %p", (input, expected) => {
       expect(niceRound(input)).toBe(expected);
     });
   });
 
-  describe('Branch 2: values strictly between 0 and 30 (0 < n < 30)', () => {
+  describe("Branch 2: values strictly between 0 and 30 (0 < n < 30)", () => {
     it.each([
       [0.0001, 1], // Minimum positive price ensures at least 1
       [0.001, 1],
@@ -39,12 +39,12 @@ describe('niceRound', () => {
       [29.9, 30],
       [29.99, 30],
       [29.999, 30],
-    ])('rounds %p to %p (whole numbers, min 1)', (input, expected) => {
+    ])("rounds %p to %p (whole numbers, min 1)", (input, expected) => {
       expect(niceRound(input)).toBe(expected);
     });
   });
 
-  describe('Branch 3: values equal to or greater than 30 (n >= 30)', () => {
+  describe("Branch 3: values equal to or greater than 30 (n >= 30)", () => {
     it.each([
       [30, 30],
       [30.0, 30],
@@ -66,8 +66,68 @@ describe('niceRound', () => {
       [999.9, 1000],
       [999.99, 1000],
       [1234.56, 1235],
-    ])('snaps %p to nearest 5: %p', (input, expected) => {
+    ])("snaps %p to nearest 5: %p", (input, expected) => {
       expect(niceRound(input)).toBe(expected);
     });
+  });
+});
+
+describe("round2", () => {
+  it("preserves whole numbers and 2-decimal numbers", () => {
+    expect(round2(10)).toBe(10);
+    expect(round2(10.5)).toBe(10.5);
+    expect(round2(10.25)).toBe(10.25);
+  });
+
+  it("rounds decimals to 2 decimal places", () => {
+    expect(round2(10.256)).toBe(10.26);
+    expect(round2(10.254)).toBe(10.25);
+  });
+
+  it("handles floating point precision quirks", () => {
+    expect(round2(0.1 + 0.2)).toBe(0.3);
+  });
+
+  it("handles negative numbers", () => {
+    expect(round2(-10.256)).toBe(-10.26);
+  });
+});
+
+describe("parseOffer", () => {
+  it("parses plain numeric string", () => {
+    expect(parseOffer("50")).toBe(50);
+  });
+
+  it("parses amounts with euro symbols", () => {
+    expect(parseOffer("50€")).toBe(50);
+    expect(parseOffer("€50")).toBe(50);
+    expect(parseOffer("€ 50")).toBe(50);
+  });
+
+  it("parses amounts with euro text variations", () => {
+    expect(parseOffer("50 euros")).toBe(50);
+    expect(parseOffer("50 eur")).toBe(50);
+    expect(parseOffer("50 euro")).toBe(50);
+  });
+
+  it("parses decimal amounts with dot or comma", () => {
+    expect(parseOffer("50.5")).toBe(50.5);
+    expect(parseOffer("75,50")).toBe(75.5);
+  });
+
+  it("handles thousands separators", () => {
+    expect(parseOffer("1.200")).toBe(1200);
+    expect(parseOffer("1.200,50")).toBe(1200.5);
+  });
+
+  it("extracts offer from buyer sentence", () => {
+    expect(parseOffer("I can give you 50€ for this")).toBe(50);
+    expect(parseOffer("Would you take 75,50 euros?")).toBe(75.5);
+  });
+
+  it("returns undefined when no valid offer/number is present", () => {
+    expect(parseOffer("hello world")).toBeUndefined();
+    expect(parseOffer("is this available?")).toBeUndefined();
+    expect(parseOffer("")).toBeUndefined();
   });
 });
