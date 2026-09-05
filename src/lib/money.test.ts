@@ -8,11 +8,13 @@ function cleanSpaces(str: string): string {
 describe("eur", () => {
   it("formats positive whole numbers with two decimal places and euro symbol in es-ES locale", () => {
     expect(cleanSpaces(eur(100))).toBe("100,00 €");
+    expect(cleanSpaces(eur(10))).toBe("10,00 €");
     expect(cleanSpaces(eur(1))).toBe("1,00 €");
   });
 
   it("formats decimal amounts accurately", () => {
     expect(cleanSpaces(eur(12.34))).toBe("12,34 €");
+    expect(cleanSpaces(eur(9.99))).toBe("9,99 €");
     expect(cleanSpaces(eur(0.99))).toBe("0,99 €");
   });
 
@@ -23,6 +25,8 @@ describe("eur", () => {
   it("rounds amounts to a maximum of two fraction digits", () => {
     expect(cleanSpaces(eur(12.345))).toBe("12,35 €");
     expect(cleanSpaces(eur(12.341))).toBe("12,34 €");
+    expect(cleanSpaces(eur(10.556))).toBe("10,56 €");
+    expect(cleanSpaces(eur(10.554))).toBe("10,55 €");
   });
 
   it("formats zero correctly", () => {
@@ -31,11 +35,17 @@ describe("eur", () => {
 
   it("formats negative numbers correctly", () => {
     expect(cleanSpaces(eur(-15.99))).toBe("-15,99 €");
+    expect(cleanSpaces(eur(-15.5))).toBe("-15,50 €");
     expect(cleanSpaces(eur(-5))).toBe("-5,00 €");
   });
 
   it("formats large numbers with thousand separators", () => {
     expect(cleanSpaces(eur(1234567.89))).toBe("1.234.567,89 €");
+  });
+
+  it("handles NaN and Infinity gracefully", () => {
+    expect(cleanSpaces(eur(NaN))).toBe("NaN €");
+    expect(cleanSpaces(eur(Infinity))).toMatch(/∞\s*€/);
   });
 });
 
@@ -43,6 +53,8 @@ describe("round2", () => {
   it("rounds numbers to 2 decimal places", () => {
     expect(round2(12.3456)).toBe(12.35);
     expect(round2(12.341)).toBe(12.34);
+    expect(round2(10.556)).toBe(10.56);
+    expect(round2(10.554)).toBe(10.55);
     expect(round2(10)).toBe(10);
   });
 });
@@ -68,7 +80,7 @@ describe("niceRound", () => {
 });
 
 describe("parseOffer", () => {
-  it("parses simple numbers from text", () => {
+  it("parses simple numbers and currency variants from text", () => {
     expect(parseOffer("50")).toBe(50);
     expect(parseOffer("50€")).toBe(50);
     expect(parseOffer("€50")).toBe(50);
