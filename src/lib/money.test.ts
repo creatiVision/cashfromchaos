@@ -1,46 +1,58 @@
 import { eur, round2, niceRound, parseOffer } from "./money";
 
+/** Helper to replace non-breaking spaces (\u00a0 and \u202f) with regular spaces for clean assertions */
+function cleanSpaces(str: string): string {
+  return str.replace(/[\u00a0\u202f]/g, " ");
+}
+
 describe("eur", () => {
-  it("formats positive integers as EUR currency in es-ES locale", () => {
-    const result = eur(10);
-    // es-ES formats 10 as "10,00 €" with a non-breaking space or narrow space
-    expect(result.replace(/[\u00a0\u202f]/g, " ")).toBe("10,00 €");
+  it("formats positive whole numbers with two decimal places and euro symbol in es-ES locale", () => {
+    expect(cleanSpaces(eur(100))).toBe("100,00 €");
+    expect(cleanSpaces(eur(10))).toBe("10,00 €");
+    expect(cleanSpaces(eur(1))).toBe("1,00 €");
   });
 
-  it("formats positive decimal amounts accurately", () => {
-    const result = eur(9.99);
-    expect(result.replace(/[\u00a0\u202f]/g, " ")).toBe("9,99 €");
+  it("formats decimal amounts accurately", () => {
+    expect(cleanSpaces(eur(12.34))).toBe("12,34 €");
+    expect(cleanSpaces(eur(9.99))).toBe("9,99 €");
+    expect(cleanSpaces(eur(0.99))).toBe("0,99 €");
+  });
+
+  it("pads single decimal places to two decimal digits", () => {
+    expect(cleanSpaces(eur(5.5))).toBe("5,50 €");
+  });
+
+  it("rounds amounts to a maximum of two fraction digits", () => {
+    expect(cleanSpaces(eur(12.345))).toBe("12,35 €");
+    expect(cleanSpaces(eur(12.341))).toBe("12,34 €");
+    expect(cleanSpaces(eur(10.556))).toBe("10,56 €");
+    expect(cleanSpaces(eur(10.554))).toBe("10,55 €");
   });
 
   it("formats zero correctly", () => {
-    const result = eur(0);
-    expect(result.replace(/[\u00a0\u202f]/g, " ")).toBe("0,00 €");
+    expect(cleanSpaces(eur(0))).toBe("0,00 €");
   });
 
-  it("formats negative amounts correctly", () => {
-    const result = eur(-15.5);
-    expect(result.replace(/[\u00a0\u202f]/g, " ")).toBe("-15,50 €");
+  it("formats negative numbers correctly", () => {
+    expect(cleanSpaces(eur(-15.99))).toBe("-15,99 €");
+    expect(cleanSpaces(eur(-15.5))).toBe("-15,50 €");
+    expect(cleanSpaces(eur(-5))).toBe("-5,00 €");
   });
 
-  it("rounds decimals exceeding maximumFractionDigits (2)", () => {
-    expect(eur(10.556).replace(/[\u00a0\u202f]/g, " ")).toBe("10,56 €");
-    expect(eur(10.554).replace(/[\u00a0\u202f]/g, " ")).toBe("10,55 €");
-  });
-
-  it("formats large numbers with thousands separators", () => {
-    const result = eur(1234567.89);
-    // es-ES uses period for thousands separator: "1.234.567,89 €"
-    expect(result.replace(/[\u00a0\u202f]/g, " ")).toBe("1.234.567,89 €");
+  it("formats large numbers with thousand separators", () => {
+    expect(cleanSpaces(eur(1234567.89))).toBe("1.234.567,89 €");
   });
 
   it("handles NaN and Infinity gracefully", () => {
-    expect(eur(NaN)).toBe("NaN €");
-    expect(eur(Infinity).replace(/[\u00a0\u202f]/g, " ")).toMatch(/∞\s*€/);
+    expect(cleanSpaces(eur(NaN))).toBe("NaN €");
+    expect(cleanSpaces(eur(Infinity))).toMatch(/∞\s*€/);
   });
 });
 
 describe("round2", () => {
   it("rounds numbers to 2 decimal places", () => {
+    expect(round2(12.3456)).toBe(12.35);
+    expect(round2(12.341)).toBe(12.34);
     expect(round2(10.556)).toBe(10.56);
     expect(round2(10.554)).toBe(10.55);
     expect(round2(10)).toBe(10);
@@ -53,29 +65,40 @@ describe("niceRound", () => {
     expect(niceRound(-10)).toBe(0);
   });
 
-  it("rounds values under 30 to whole euros, minimum 1", () => {
+  it("rounds low-value items (< 30) to whole euros with a minimum of 1", () => {
     expect(niceRound(0.4)).toBe(1);
-    expect(niceRound(18.4)).toBe(18);
-    expect(niceRound(29.6)).toBe(30);
+    expect(niceRound(18.40)).toBe(18);
+    expect(niceRound(29.60)).toBe(30);
   });
 
-  it("snaps values 30 and above to nearest 5 euros", () => {
+  it("snaps higher-value items (>= 30) to the nearest 5", () => {
+    expect(niceRound(31)).toBe(30);
+    expect(niceRound(33)).toBe(35);
     expect(niceRound(73.75)).toBe(75);
     expect(niceRound(110.72)).toBe(110);
   });
 });
 
 describe("parseOffer", () => {
-  it("parses offer amounts from text", () => {
+  it("parses simple numbers and currency variants from text", () => {
     expect(parseOffer("50")).toBe(50);
     expect(parseOffer("50€")).toBe(50);
     expect(parseOffer("€50")).toBe(50);
-    expect(parseOffer("50.5")).toBe(50.5);
-    expect(parseOffer("75,50")).toBe(75.5);
-    expect(parseOffer("1.200")).toBe(1200);
+    expect(parseOffer("50 euros")).toBe(50);
   });
 
-  it("returns undefined if no offer amount is found", () => {
+  it("parses decimal amounts with dot or comma", () => {
+    expect(parseOffer("50.5")).toBe(50.5);
+    expect(parseOffer("75,50")).toBe(75.5);
+  });
+
+  it("handles thousands separators", () => {
+    expect(parseOffer("1.200")).toBe(1200);
+    expect(parseOffer("1.200€")).toBe(1200);
+  });
+
+  it("returns undefined for text without numeric offers", () => {
     expect(parseOffer("hello world")).toBeUndefined();
+    expect(parseOffer("no price here")).toBeUndefined();
   });
 });
