@@ -77,19 +77,25 @@ describe("round2", () => {
     expect(round2(10)).toBe(10);
     expect(round2(10.5)).toBe(10.5);
     expect(round2(10.25)).toBe(10.25);
+    expect(round2(0)).toBe(0);
   });
 
   it("rounds decimals to 2 decimal places", () => {
+    expect(round2(10.555)).toBe(10.56);
+    expect(round2(10.554)).toBe(10.55);
     expect(round2(10.256)).toBe(10.26);
     expect(round2(10.254)).toBe(10.25);
   });
 
   it("handles floating point precision quirks", () => {
     expect(round2(0.1 + 0.2)).toBe(0.3);
+    expect(round2(0.1 + 0.7)).toBe(0.8);
   });
 
   it("handles negative numbers", () => {
     expect(round2(-10.256)).toBe(-10.26);
+    expect(round2(-10.555)).toBe(-10.55);
+    expect(round2(-10.556)).toBe(-10.56);
   });
 });
 
@@ -102,6 +108,7 @@ describe("parseOffer", () => {
     expect(parseOffer("50€")).toBe(50);
     expect(parseOffer("€50")).toBe(50);
     expect(parseOffer("€ 50")).toBe(50);
+    expect(parseOffer("50 €")).toBe(50);
   });
 
   it("parses amounts with euro text variations", () => {
@@ -112,7 +119,9 @@ describe("parseOffer", () => {
 
   it("parses decimal amounts with dot or comma", () => {
     expect(parseOffer("50.5")).toBe(50.5);
+    expect(parseOffer("50,50")).toBe(50.5);
     expect(parseOffer("75,50")).toBe(75.5);
+    expect(parseOffer("€75,50")).toBe(75.5);
   });
 
   it("handles thousands separators", () => {
@@ -123,11 +132,14 @@ describe("parseOffer", () => {
   it("extracts offer from buyer sentence", () => {
     expect(parseOffer("I can give you 50€ for this")).toBe(50);
     expect(parseOffer("Would you take 75,50 euros?")).toBe(75.5);
+    expect(parseOffer("I can offer 45 euros for this item")).toBe(45);
+    expect(parseOffer("Would you take €35?")).toBe(35);
   });
 
   it("returns undefined when no valid offer/number is present", () => {
     expect(parseOffer("hello world")).toBeUndefined();
     expect(parseOffer("is this available?")).toBeUndefined();
+    expect(parseOffer("hello there")).toBeUndefined();
     expect(parseOffer("")).toBeUndefined();
   });
 });
