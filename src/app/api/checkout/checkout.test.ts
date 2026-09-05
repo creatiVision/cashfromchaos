@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getSafeOrigin } from "./route";
+import { getSafeOrigin } from "@/lib/origin";
 
 describe("Host Header Injection Prevention (getSafeOrigin)", () => {
   const originalEnv = process.env;
