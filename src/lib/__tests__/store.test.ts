@@ -1,4 +1,16 @@
-import { newId } from "../store";
+import {
+  newId,
+  ensureSeeded,
+  resetDemo,
+  listItems,
+  createItemFromIntake,
+  getItem,
+  saveItem,
+  setStatus,
+  trace,
+} from "../store";
+import { FixtureBrain } from "../operator/fixtureBrain";
+import type { Item } from "../types";
 
 describe("newId", () => {
   it("uses default prefix 'item' when no prefix is provided", () => {
@@ -47,9 +59,6 @@ describe("newId", () => {
   });
 });
 
-import { ensureSeeded, resetDemo, listItems, createItemFromIntake } from "../store";
-import { FixtureBrain } from "../operator/fixtureBrain";
-
 describe("ensureSeeded & resetDemo", () => {
   beforeEach(async () => {
     await resetDemo();
@@ -82,5 +91,147 @@ describe("ensureSeeded & resetDemo", () => {
     await resetDemo();
     expect(listItems().find((i) => i.id === customItem.id)).toBeUndefined();
     expect(listItems().length).toBe(3);
+  });
+});
+
+describe("getItem, saveItem, listItems, setStatus, trace", () => {
+  const createMockItem = (id: string, createdAt: number): Item => ({
+    id,
+    createdAt,
+    intake: { clue: "Test intake", photos: [] },
+    analysis: {
+      title: "Test Item",
+      category: "Test Category",
+      detectedAttributes: {},
+      condition: "good",
+      confidence: "high",
+      rationale: [],
+      missingInfo: [],
+      flags: [],
+      estimatedMarketLow: 10,
+      estimatedMarketHigh: 20,
+    },
+    plan: {
+      primary: {
+        channelId: "ebay-de",
+        name: "eBay Germany",
+        fitScore: 0.95,
+        reason: "Good fit",
+        feePct: 0.1,
+        shippingFriendly: true,
+      },
+      alternates: [],
+      bundleRecommended: false,
+      strategy: [],
+    },
+    policy: {
+      currency: "EUR",
+      targetPrice: 20,
+      floorPrice: 15,
+      autoAcceptAtOrAbove: 20,
+      autoCounterDownTo: 16,
+      requireHumanBelow: 14,
+      maxFulfillmentSpend: 10,
+      allowedPaymentMethods: ["stripe"],
+      allowedChannels: ["ebay-de"],
+      shippingAllowed: true,
+      pickupAllowed: true,
+      suspiciousBuyerEscalation: true,
+    },
+    listings: [],
+    status: "listed",
+    messages: [],
+    agentReplies: [],
+    payment: { provider: "simulated", status: "none", amount: 0 },
+    ledger: [],
+    trace: [],
+  });
+
+  beforeEach(async () => {
+    await resetDemo();
+  });
+
+  describe("getItem & saveItem", () => {
+    it("returns undefined for non-existent item id", () => {
+      expect(getItem("non_existent_id")).toBeUndefined();
+    });
+
+    it("saves an item and retrieves it by id", () => {
+      const mockItem = createMockItem("item_test_1", Date.now());
+      saveItem(mockItem);
+
+      const retrieved = getItem("item_test_1");
+      expect(retrieved).toEqual(mockItem);
+    });
+
+    it("updates an existing item when saved again", () => {
+      const mockItem = createMockItem("item_test_2", Date.now());
+      saveItem(mockItem);
+
+      mockItem.status = "paid";
+      saveItem(mockItem);
+
+      const retrieved = getItem("item_test_2");
+      expect(retrieved?.status).toBe("paid");
+    });
+  });
+
+  describe("listItems", () => {
+    it("returns items sorted by createdAt in descending order", () => {
+      const now = Date.now();
+      const itemOld = createMockItem("item_old", now - 10000);
+      const itemNew = createMockItem("item_new", now);
+      const itemMid = createMockItem("item_mid", now - 5000);
+
+      saveItem(itemOld);
+      saveItem(itemNew);
+      saveItem(itemMid);
+
+      const items = listItems();
+      const testItems = items.filter((i) => ["item_old", "item_new", "item_mid"].includes(i.id));
+
+      expect(testItems[0].id).toBe("item_new");
+      expect(testItems[1].id).toBe("item_mid");
+      expect(testItems[2].id).toBe("item_old");
+    });
+  });
+
+  describe("setStatus", () => {
+    it("updates item status and saves it in store", () => {
+      const mockItem = createMockItem("item_status_test", Date.now());
+      saveItem(mockItem);
+
+      setStatus(mockItem, "offer-accepted");
+
+      expect(mockItem.status).toBe("offer-accepted");
+      expect(getItem("item_status_test")?.status).toBe("offer-accepted");
+    });
+  });
+
+  describe("trace", () => {
+    it("appends a trace event with default level 'info'", () => {
+      const mockItem = createMockItem("item_trace_test", Date.now());
+      const beforeTs = Date.now();
+
+      trace(mockItem, "seller", "Item submitted", "Detail message");
+
+      expect(mockItem.trace.length).toBe(1);
+      const event = mockItem.trace[0];
+      expect(event.actor).toBe("seller");
+      expect(event.label).toBe("Item submitted");
+      expect(event.detail).toBe("Detail message");
+      expect(event.level).toBe("info");
+      expect(event.ts).toBeGreaterThanOrEqual(beforeTs);
+    });
+
+    it("appends a trace event with custom level", () => {
+      const mockItem = createMockItem("item_trace_level_test", Date.now());
+
+      trace(mockItem, "operator", "Needs details", "Missing condition", "warn");
+
+      expect(mockItem.trace.length).toBe(1);
+      const event = mockItem.trace[0];
+      expect(event.level).toBe("warn");
+    });
   });
 });
