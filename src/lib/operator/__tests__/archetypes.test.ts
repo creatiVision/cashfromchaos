@@ -34,6 +34,12 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
       expect(matchArchetype("Unspecified item xyz 123")).toEqual(GENERIC_ARCHETYPE);
       expect(matchArchetype("")).toEqual(GENERIC_ARCHETYPE);
     });
+
+    it("should return GENERIC_ARCHETYPE for whitespace-only strings or special punctuation", () => {
+      expect(matchArchetype("   \n\t  ")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("!!! ??? @#$%^&*()")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("1234567890")).toEqual(GENERIC_ARCHETYPE);
+    });
   });
 
   describe("Case Insensitivity and Accent Handling", () => {
@@ -64,6 +70,13 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
       expect(smartwatchResult.id).toBe("smartwatch");
     });
 
+    it("should resolve competing keywords from different archetypes based on score", () => {
+      // "stroller" (8) + "pram" (4) = 12 for stroller archetype
+      // vs "watch" (5) = 5 for smartwatch archetype
+      const result = matchArchetype("Garmin watch stroller pram");
+      expect(result.id).toBe("stroller");
+    });
+
     it("should only score keyword presence once even if repeated in clue text", () => {
       // "garmin garmin garmin" -> "garmin".length = 6 once because clue.includes("garmin") is boolean
       const singleHit = matchArchetype("garmin watch");
@@ -87,6 +100,12 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
         Condition: Good (used).
       `;
       expect(matchArchetype(clue).id).toBe("smartwatch");
+    });
+
+    it("should handle clues with leading/trailing spaces or surrounding symbols", () => {
+      expect(matchArchetype("   stroller   ").id).toBe("stroller");
+      expect(matchArchetype("[smartwatch]").id).toBe("smartwatch");
+      expect(matchArchetype("#guitar-pedal#").id).toBe("guitar-pedal");
     });
   });
 
@@ -141,6 +160,14 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
           const matched = matchArchetype(keyword);
           expect(matched.id).not.toBe(GENERIC_ARCHETYPE.id);
         }
+      }
+    });
+
+    it("should correctly match primary keyword for every defined archetype in ARCHETYPES", () => {
+      for (const archetype of ARCHETYPES) {
+        const primaryKeyword = archetype.keywords[0];
+        const matched = matchArchetype(primaryKeyword);
+        expect(matched.id).toBe(archetype.id);
       }
     });
   });

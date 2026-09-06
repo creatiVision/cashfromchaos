@@ -45,10 +45,18 @@ describe("auth", () => {
       expect(checkApiAuth(req)).toBeNull();
     });
 
+    it("returns null when valid token is provided without Bearer prefix (raw token)", () => {
+      process.env.CFC_API_TOKEN = "test-token-123";
+      const req = new NextRequest("http://localhost:3000/api/protected", {
+        headers: { authorization: "test-token-123" },
+      });
+      expect(checkApiAuth(req)).toBeNull();
+    });
+
     it("handles case-insensitive bearer prefix and whitespace", () => {
       process.env.CFC_API_TOKEN = "test-token-123";
       const req = new NextRequest("http://localhost:3000/api/protected", {
-        headers: { authorization: "bearer   test-token-123  " },
+        headers: { authorization: "BEARER   test-token-123  " },
       });
       expect(checkApiAuth(req)).toBeNull();
     });
@@ -56,6 +64,22 @@ describe("auth", () => {
     it("returns 401 when authorization header is missing", async () => {
       process.env.CFC_API_TOKEN = "test-token-123";
       const req = new NextRequest("http://localhost:3000/api/protected");
+      const res = checkApiAuth(req);
+
+      expect(res).not.toBeNull();
+      expect(res?.status).toBe(401);
+
+      const data = await res?.json();
+      expect(data).toEqual({
+        error: "Missing or invalid API token. Send 'Authorization: Bearer <CFC_API_TOKEN>'.",
+      });
+    });
+
+    it("returns 401 when authorization header contains only Bearer prefix or whitespace", async () => {
+      process.env.CFC_API_TOKEN = "test-token-123";
+      const req = new NextRequest("http://localhost:3000/api/protected", {
+        headers: { authorization: "Bearer   " },
+      });
       const res = checkApiAuth(req);
 
       expect(res).not.toBeNull();
