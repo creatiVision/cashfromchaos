@@ -8,6 +8,7 @@ import {
   saveItem,
   setStatus,
   trace,
+  negotiate,
 } from "../store";
 import { FixtureBrain } from "../operator/fixtureBrain";
 import type { Item } from "../types";
@@ -91,6 +92,37 @@ describe("ensureSeeded & resetDemo", () => {
     await resetDemo();
     expect(listItems().find((i) => i.id === customItem.id)).toBeUndefined();
     expect(listItems().length).toBe(3);
+  });
+
+  it("respects skipSave option during item creation and negotiation", async () => {
+    const brain = new FixtureBrain();
+    const intake = { clue: "Unsaved guitar pedal", photos: [] };
+    const unSavedItem = await createItemFromIntake(intake, {
+      id: "unsaved_123",
+      brain,
+      skipSave: true,
+    });
+
+    expect(getItem("unsaved_123")).toBeUndefined();
+
+    await negotiate(
+      unSavedItem,
+      {
+        itemId: unSavedItem.id,
+        buyerName: "Tester",
+        text: "Would you take 10 euros?",
+        offer: 10,
+        ts: Date.now(),
+      },
+      brain,
+      { skipSave: true }
+    );
+
+    expect(getItem("unsaved_123")).toBeUndefined();
+    expect(unSavedItem.messages.length).toBe(1);
+
+    saveItem(unSavedItem);
+    expect(getItem("unsaved_123")).toBeDefined();
   });
 });
 
