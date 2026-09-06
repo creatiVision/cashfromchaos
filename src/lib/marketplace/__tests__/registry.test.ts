@@ -1,42 +1,28 @@
-import { ADAPTERS, adaptersByRegion, allAdapters, getAdapter } from "../registry";
 import type { ListingDraft } from "@/lib/types";
+import { ADAPTERS, adaptersByRegion, allAdapters, getAdapter } from "../registry";
 
 describe("Marketplace Registry", () => {
-  describe("ADAPTERS dictionary integrity", () => {
-    it("should have matching dictionary keys and adapter IDs", () => {
+  describe("ADAPTERS structure & integrity", () => {
+    it("should have matching key and adapter id for every registered adapter", () => {
       Object.entries(ADAPTERS).forEach(([key, adapter]) => {
         expect(adapter.id).toBe(key);
       });
     });
 
-    it("should have valid metadata fields for all registered adapters", () => {
-      const validKinds = ["shipping", "local", "collector", "generalist"];
-      const validRegions = ["de", "eu", "global"];
-
-      Object.values(ADAPTERS).forEach((adapter) => {
+    it("should have required properties with valid types on every adapter", () => {
+      allAdapters().forEach((adapter) => {
         expect(typeof adapter.id).toBe("string");
         expect(adapter.id.length).toBeGreaterThan(0);
-
         expect(typeof adapter.name).toBe("string");
-        expect(adapter.name.length).toBeGreaterThan(0);
-
-        expect(validKinds).toContain(adapter.kind);
-
+        expect(["shipping", "local", "collector", "generalist"]).toContain(adapter.kind);
         expect(typeof adapter.feePct).toBe("number");
         expect(adapter.feePct).toBeGreaterThanOrEqual(0);
-
         expect(typeof adapter.shippingFriendly).toBe("boolean");
-
-        expect(validRegions).toContain(adapter.region);
-
+        expect(["de", "eu", "global"]).toContain(adapter.region);
         expect(typeof adapter.blurb).toBe("string");
-        expect(adapter.blurb.length).toBeGreaterThan(0);
-
         expect(Array.isArray(adapter.strengths)).toBe(true);
-        expect(adapter.strengths.length).toBeGreaterThan(0);
-        adapter.strengths.forEach((strength) => {
-          expect(typeof strength).toBe("string");
-        });
+        expect(typeof adapter.supportsCategory).toBe("function");
+        expect(typeof adapter.createListing).toBe("function");
       });
     });
   });
@@ -63,8 +49,13 @@ describe("Marketplace Registry", () => {
       expect(adapter).toBeUndefined();
     });
 
-    it("should return undefined for empty string ID", () => {
+    it("should return undefined for an empty string ID", () => {
       const adapter = getAdapter("");
+      expect(adapter).toBeUndefined();
+    });
+
+    it("should return undefined for case mismatch in ID", () => {
+      const adapter = getAdapter("EBAY-DE-MOCK");
       expect(adapter).toBeUndefined();
     });
   });
@@ -136,31 +127,62 @@ describe("Marketplace Registry", () => {
   });
 
   describe("supportsCategory", () => {
-    it("should return true when category matches adapter strengths (case-insensitive)", () => {
-      const reverb = getAdapter("reverb-mock")!;
-      expect(reverb.supportsCategory("GUITAR")).toBe(true);
-      expect(reverb.supportsCategory("guitar")).toBe(true);
-      expect(reverb.supportsCategory("Music Gear")).toBe(true);
+    it("should return true when category matches strengths (case-insensitive and partial)", () => {
+      const collectorAdapter = getAdapter("collector-forum-mock");
+      expect(collectorAdapter).toBeDefined();
+
+      expect(collectorAdapter!.supportsCategory("Pokemon Cards")).toBe(true);
+      expect(collectorAdapter!.supportsCategory("TRADING CARDS")).toBe(true);
+      expect(collectorAdapter!.supportsCategory("TCG")).toBe(true);
     });
 
-    it("should handle partial string matches in both directions", () => {
-      const collector = getAdapter("collector-forum-mock")!;
-      // category contains strength ("trading cards" in "rare trading cards collection")
-      expect(collector.supportsCategory("rare trading cards collection")).toBe(true);
-      // strength contains category ("pokemon" contains "pokem")
-      expect(collector.supportsCategory("pokemon")).toBe(true);
+    it("should return false when category does not match adapter strengths", () => {
+      const collectorAdapter = getAdapter("collector-forum-mock");
+      expect(collectorAdapter).toBeDefined();
+
+      expect(collectorAdapter!.supportsCategory("Heavy Machinery")).toBe(false);
+      expect(collectorAdapter!.supportsCategory("Kitchen Appliance")).toBe(false);
     });
 
-    it("should return false when category is not supported", () => {
-      const collector = getAdapter("collector-forum-mock")!;
-      expect(collector.supportsCategory("heavy machinery")).toBe(false);
-      expect(collector.supportsCategory("kitchen appliances")).toBe(false);
+    it("should match empty string strength for sandbox adapter", () => {
+      const sandboxAdapter = getAdapter("cashfromchaos-sandbox");
+      expect(sandboxAdapter).toBeDefined();
+
+      expect(sandboxAdapter!.supportsCategory("Any Category")).toBe(true);
     });
 
-    it("should match any category for sandbox adapter due to empty string strength", () => {
-      const sandbox = getAdapter("cashfromchaos-sandbox")!;
-      expect(sandbox.supportsCategory("anything")).toBe(true);
-      expect(sandbox.supportsCategory("unusual-category-xyz")).toBe(true);
+    it("should return true when category matches a strength case-insensitively", () => {
+      const adapter = getAdapter("reverb-mock");
+      expect(adapter).toBeDefined();
+
+      expect(adapter!.supportsCategory("MUSIC")).toBe(true);
+      expect(adapter!.supportsCategory("Guitar")).toBe(true);
+      expect(adapter!.supportsCategory("AUDIO")).toBe(true);
+    });
+
+    it("should return true when input category string contains a strength substring", () => {
+      const adapter = getAdapter("reverb-mock");
+      expect(adapter).toBeDefined();
+
+      // "vintage guitar gear" contains "guitar"
+      expect(adapter!.supportsCategory("vintage guitar gear")).toBe(true);
+    });
+
+    it("should return true when strength string contains input category substring", () => {
+      const adapter = getAdapter("collector-forum-mock");
+      expect(adapter).toBeDefined();
+
+      // strength "trading cards" contains category "cards"
+      expect(adapter!.supportsCategory("cards")).toBe(true);
+    });
+
+    it("should return false when category does not match any strength", () => {
+      const adapter = getAdapter("reverb-mock");
+      expect(adapter).toBeDefined();
+
+      expect(adapter!.supportsCategory("gardening")).toBe(false);
+      expect(adapter!.supportsCategory("kitchenware")).toBe(false);
+      expect(adapter!.supportsCategory("unrelated-category-xyz")).toBe(false);
     });
   });
 
@@ -184,6 +206,25 @@ describe("Marketplace Registry", () => {
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const externalIdSuffix = result.externalId.replace("cashfromchaos-sandbox_", "");
       expect(externalIdSuffix).toMatch(uuidPattern);
+    });
+
+    it("should create listings for all adapters with their respective channelId", async () => {
+      const draft: ListingDraft = {
+        channelId: "generic",
+        title: "Sample Item",
+        body: "Item description",
+        tags: ["electronics"],
+        price: 50,
+        currency: "EUR",
+      };
+
+      for (const adapter of allAdapters()) {
+        const result = await adapter.createListing(draft);
+        expect(result.channelId).toBe(adapter.id);
+        expect(result.status).toBe("live");
+        expect(result.url).toBe("/market/listing");
+        expect(result.externalId.startsWith(`${adapter.id}_`)).toBe(true);
+      }
     });
 
     it("should generate unique external IDs for successive listings on different adapters", async () => {
