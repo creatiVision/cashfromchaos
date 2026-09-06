@@ -46,3 +46,41 @@ describe("newId", () => {
     expect(generatedIds.size).toBe(count);
   });
 });
+
+import { ensureSeeded, resetDemo, listItems, createItemFromIntake } from "../store";
+import { FixtureBrain } from "../operator/fixtureBrain";
+
+describe("ensureSeeded & resetDemo", () => {
+  beforeEach(async () => {
+    await resetDemo();
+  });
+
+  it("seeds the three demo items correctly", async () => {
+    await ensureSeeded();
+    const items = listItems();
+    expect(items.length).toBe(3);
+
+    const pokemon = items.find((i) => i.id === "demo_pokemon");
+    const pedal = items.find((i) => i.id === "demo_pedal");
+    const furniture = items.find((i) => i.id === "demo_furniture");
+
+    expect(pokemon).toBeDefined();
+    expect(pedal).toBeDefined();
+    expect(furniture).toBeDefined();
+
+    expect(pokemon?.messages.length).toBeGreaterThan(0);
+    expect(furniture?.messages.length).toBeGreaterThan(0);
+  });
+
+  it("resets store and re-seeds items", async () => {
+    const customItem = await createItemFromIntake(
+      { clue: "Test item", photos: [] },
+      { brain: new FixtureBrain() }
+    );
+    expect(listItems().find((i) => i.id === customItem.id)).toBeDefined();
+
+    await resetDemo();
+    expect(listItems().find((i) => i.id === customItem.id)).toBeUndefined();
+    expect(listItems().length).toBe(3);
+  });
+});
