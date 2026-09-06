@@ -50,9 +50,9 @@ export function trace(
 // ---------------------------------------------------------------------------
 export async function createItemFromIntake(
   intake: ItemIntake,
-  opts: { id?: string; createdAt?: number } = {}
+  opts: { id?: string; createdAt?: number; brain?: OperatorBrain } = {}
 ): Promise<Item> {
-  const op = getOperator();
+  const op = opts.brain ?? getOperator();
   const analysis = await op.analyzeItem(intake);
   const plan = await op.chooseMarketplace(analysis);
   const policy = await op.buildPolicy(analysis, plan);
@@ -210,7 +210,8 @@ async function seedDemo(): Promise<void> {
     DEMO_INTAKES.map(async (seed, index) => {
       const item = await createItemFromIntake(seed.intake, {
         id: seed.id,
-        createdAt: t + (index + 1) * 60000
+        createdAt: t + (index + 1) * 60000,
+        brain: seedBrain,
       });
 
       for (const m of seed.seedMessages ?? []) {
