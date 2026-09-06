@@ -50,7 +50,7 @@ export function trace(
 // ---------------------------------------------------------------------------
 export async function createItemFromIntake(
   intake: ItemIntake,
-  opts: { id?: string; createdAt?: number; brain?: OperatorBrain } = {}
+  opts: { id?: string; createdAt?: number; brain?: OperatorBrain; skipSave?: boolean } = {}
 ): Promise<Item> {
   const op = opts.brain ?? getOperator();
   const analysis = await op.analyzeItem(intake);
@@ -111,7 +111,9 @@ export async function createItemFromIntake(
   );
   trace(item, "system", `Listing live on ${plan.primary.name}`, listings[0]?.title);
 
-  store().items.set(item.id, item);
+  if (!opts.skipSave) {
+    saveItem(item);
+  }
   return item;
 }
 
@@ -127,9 +129,11 @@ export function saveItem(item: Item): void {
   store().items.set(item.id, item);
 }
 
-export function setStatus(item: Item, status: TransactionStatus): void {
+export function setStatus(item: Item, status: TransactionStatus, opts: { skipSave?: boolean } = {}): void {
   item.status = status;
-  saveItem(item);
+  if (!opts.skipSave) {
+    saveItem(item);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +142,8 @@ export function setStatus(item: Item, status: TransactionStatus): void {
 export async function negotiate(
   item: Item,
   msg: BuyerMessage,
-  brain?: OperatorBrain
+  brain?: OperatorBrain,
+  opts: { skipSave?: boolean } = {}
 ): Promise<AgentReply> {
   const op = brain ?? getOperator();
   item.messages.push(msg);
@@ -148,7 +153,7 @@ export async function negotiate(
     `${msg.buyerName}: ${msg.text}`,
     msg.offer !== undefined ? `offer ${eur(msg.offer)}` : undefined
   );
-  if (item.status === "listed") setStatus(item, "buyer-engaged");
+  if (item.status === "listed") setStatus(item, "buyer-engaged", { skipSave: opts.skipSave });
 
   const reply = await op.handleBuyerMessage(item, msg);
   item.agentReplies.push(reply);
@@ -166,10 +171,12 @@ export async function negotiate(
       status: "none",
       amount: reply.agreedPrice,
     };
-    setStatus(item, "offer-accepted");
+    setStatus(item, "offer-accepted", { skipSave: opts.skipSave });
     trace(item, "operator", `Deal agreed at ${eur(reply.agreedPrice)}`, "Awaiting Stripe payment", "money");
   }
-  saveItem(item);
+  if (!opts.skipSave) {
+    saveItem(item);
+  }
   return reply;
 }
 
@@ -212,6 +219,7 @@ async function seedDemo(): Promise<void> {
         id: seed.id,
         createdAt: t + (index + 1) * 60000,
         brain: seedBrain,
+        skipSave: true,
       });
 
       for (const m of seed.seedMessages ?? []) {
@@ -224,7 +232,8 @@ async function seedDemo(): Promise<void> {
             offer: m.offer,
             ts: Date.now() - (m.agoMs ?? 0),
           },
-          seedBrain
+          seedBrain,
+          { skipSave: true }
         );
       }
       saveItem(item);
