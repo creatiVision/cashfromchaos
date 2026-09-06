@@ -67,7 +67,7 @@ describe("Marketplace Registry", () => {
       deAdapters.forEach((adapter) => {
         expect(adapter.region).toBe("de");
       });
-      // Specific check for expected DE adapters
+
       const ids = deAdapters.map((a) => a.id);
       expect(ids).toContain("ebay-de-mock");
       expect(ids).toContain("kleinanzeigen-mock");
@@ -79,6 +79,7 @@ describe("Marketplace Registry", () => {
       euAdapters.forEach((adapter) => {
         expect(adapter.region).toBe("eu");
       });
+
       const ids = euAdapters.map((a) => a.id);
       expect(ids).toContain("cashfromchaos-sandbox");
       expect(ids).toContain("collector-forum-mock");
@@ -92,6 +93,7 @@ describe("Marketplace Registry", () => {
       globalAdapters.forEach((adapter) => {
         expect(adapter.region).toBe("global");
       });
+
       const ids = globalAdapters.map((a) => a.id);
       expect(ids).toContain("reverb-mock");
       expect(ids).toContain("ebay-mock");
@@ -185,11 +187,10 @@ describe("Marketplace Registry", () => {
   });
 
   describe("createListing", () => {
-    it("should create listing with a valid UUID externalId", async () => {
-      const adapter = getAdapter("cashfromchaos-sandbox");
-      expect(adapter).toBeDefined();
+    it("should create listing with valid format and UUID externalId", async () => {
+      const adapter = getAdapter("cashfromchaos-sandbox")!;
 
-      const result = await adapter!.createListing({
+      const result = await adapter.createListing({
         channelId: "cashfromchaos-sandbox",
         title: "Test Listing",
         body: "Test Description",
@@ -224,6 +225,31 @@ describe("Marketplace Registry", () => {
         expect(result.url).toBe("/market/listing");
         expect(result.externalId.startsWith(`${adapter.id}_`)).toBe(true);
       }
+    });
+
+    it("should generate unique external IDs for successive listings on different adapters", async () => {
+      const ebayDe = getAdapter("ebay-de-mock")!;
+      const kleinanzeigen = getAdapter("kleinanzeigen-mock")!;
+
+      const draft: ListingDraft = {
+        channelId: "ebay-de-mock",
+        title: "Vintage Guitar",
+        body: "Great condition",
+        tags: ["guitar"],
+        price: 250,
+        currency: "EUR",
+      };
+
+      const result1 = await ebayDe.createListing(draft);
+      const result2 = await ebayDe.createListing(draft);
+      const result3 = await kleinanzeigen.createListing({ ...draft, channelId: "kleinanzeigen-mock" });
+
+      expect(result1.externalId).not.toEqual(result2.externalId);
+      expect(result1.channelId).toBe("ebay-de-mock");
+      expect(result1.externalId.startsWith("ebay-de-mock_")).toBe(true);
+
+      expect(result3.channelId).toBe("kleinanzeigen-mock");
+      expect(result3.externalId.startsWith("kleinanzeigen-mock_")).toBe(true);
     });
   });
 });

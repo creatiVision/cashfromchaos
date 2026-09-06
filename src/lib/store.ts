@@ -236,6 +236,7 @@ async function seedDemo(): Promise<void> {
           { skipSave: true }
         );
       }
+      saveItem(item);
     })
   );
 }
