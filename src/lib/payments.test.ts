@@ -6,7 +6,7 @@ import {
   baseUrl,
   createCheckout,
 } from './payments';
-import { Item } from './types';
+import { Item, LedgerEntry } from './types';
 
 function mockItem(
   paymentAmount: number,
@@ -133,11 +133,14 @@ describe('payments module', () => {
       ]);
     });
 
-    it('should ignore shipping entry if labelCost is 0', () => {
-      const item = mockItem(100, 'Direct', 0, 0, 'FedEx');
-      const ledger = buildLedger(item);
+    it('should ignore shipping entry if labelCost is 0 or negative', () => {
+      const item0 = mockItem(100, 'Direct', 0, 0, 'FedEx');
+      expect(buildLedger(item0)).toEqual([
+        { label: 'Buyer payment (Direct)', amount: 100, kind: 'revenue' },
+      ]);
 
-      expect(ledger).toEqual([
+      const itemNeg = mockItem(100, 'Direct', 0, -5, 'DHL');
+      expect(buildLedger(itemNeg)).toEqual([
         { label: 'Buyer payment (Direct)', amount: 100, kind: 'revenue' },
       ]);
     });
@@ -182,6 +185,18 @@ describe('payments module', () => {
       expect(netPayout(item)).toBe(85.01);
     });
 
+    it('should correctly sum custom ledger entry amounts', () => {
+      const item = {
+        ledger: [
+          { label: 'Buyer payment (eBay)', amount: 100, kind: 'revenue' },
+          { label: 'Marketplace fee (10%)', amount: -10, kind: 'fee' },
+          { label: 'Shipping label (UPS)', amount: -5.5, kind: 'shipping' },
+        ] as LedgerEntry[],
+      } as Item;
+
+      expect(netPayout(item)).toEqual(84.5);
+    });
+
     it('rounds calculation result using round2', () => {
       const item = mockItem(100, 'eBay');
       item.ledger = [
@@ -189,6 +204,17 @@ describe('payments module', () => {
         { label: 'Fee', amount: -0.0004, kind: 'fee' },
       ];
       expect(netPayout(item)).toBe(10);
+    });
+
+    it('should round the net payout to 2 decimal places', () => {
+      const item = {
+        ledger: [
+          { label: 'Revenue', amount: 100.001, kind: 'revenue' },
+          { label: 'Fee', amount: -12.345, kind: 'fee' },
+        ] as LedgerEntry[],
+      } as Item;
+
+      expect(netPayout(item)).toEqual(87.66);
     });
   });
 
