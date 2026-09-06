@@ -22,6 +22,18 @@ import type {
 import { getAdapter } from "@/lib/marketplace/registry";
 import { matchArchetype, type Archetype } from "@/lib/operator/archetypes";
 
+// Module-level regular expressions hoisted to avoid recompilation overhead.
+const FAULTY_PATTERN = /(faulty|not work|broken|for parts)/;
+const PERFECT_PATTERN = /(perfect|spotless|box \+ adapter|works perfectly|english|a few holos)/;
+const MINOR_WEAR_PATTERN = /(minor|some|needs a clean|adapter only)/;
+
+const SCAM_PATTERN = /(whatsapp|western union|bizum to|paypal friends|gift card|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick))/;
+const PROBING_PATTERN = /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address))/;
+const SHIPPING_PATTERN = /(ship|send|courier|post|delivery|envío|enviar)/;
+const MANIPULATIVE_PATTERN = /(trust me|pay (you )?later|pay after|i'?ll pay (you )?(tomorrow|later|when)|send (it )?(first|before)|ship (it )?(first|before)|reserve (it|this)|hold (it|this) for|deposit later|do me a favou?r|my kid|sick|emergency|urgent|last (bit of )?money|i'?m broke|for free|charity|give it to me)/;
+const AGREES_PATTERN = /(\bdeal\b|\bsold\b|i'?ll take it|i will take it|i'?ll buy|let'?s do it|works for me|sounds good|that works|me lo (quedo|llevo)|lo compro|trato( hecho)?|de acuerdo|acepto|vale,? (lo|me|trato))/;
+const BARE_YES_PATTERN = /^\s*(ok(ay)?|yes|yep|yeah|sure|fine|deal|s[íi]|vale|venga|hecho|done)\s*[.!]?\s*$/i;
+
 function channelOption(id: string, rank: number, category: string): MarketplaceOption {
   const a = getAdapter(id);
   if (!a) {
@@ -53,15 +65,15 @@ function refineWithAnswers(a: Archetype, intake: ItemIntake): { low: number; hig
   const ans = intake.answers ?? {};
   for (const val of Object.values(ans)) {
     const v = val.toLowerCase();
-    if (/(faulty|not work|broken|for parts)/.test(v)) {
+    if (FAULTY_PATTERN.test(v)) {
       low = round2(low * 0.45);
       high = round2(high * 0.5);
       notes.push("Seller reports faulty/for-parts → price band cut materially.");
-    } else if (/(perfect|spotless|box \+ adapter|works perfectly|english|a few holos)/.test(v)) {
+    } else if (PERFECT_PATTERN.test(v)) {
       low = round2(low * 1.08);
       high = round2(high * 1.12);
       notes.push("Positive condition/accessory signal → band nudged up.");
-    } else if (/(minor|some|needs a clean|adapter only)/.test(v)) {
+    } else if (MINOR_WEAR_PATTERN.test(v)) {
       notes.push("Minor wear noted → band held, mention honestly in listing.");
     }
   }
@@ -213,9 +225,7 @@ export class FixtureBrain implements OperatorBrain {
     const standingAsk = lastCounter ?? p.targetPrice;
 
     // --- Scam / off-platform / overpayment detection ---
-    const scammy = /(whatsapp|western union|bizum to|paypal friends|gift card|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick))/.test(
-      text
-    );
+    const scammy = SCAM_PATTERN.test(text);
     if (scammy) {
       return {
         decision: "escalate-human",
@@ -227,9 +237,7 @@ export class FixtureBrain implements OperatorBrain {
     }
 
     // --- Personal-info extraction → withhold until paid ---
-    const probing = /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address))/.test(
-      text
-    );
+    const probing = PROBING_PATTERN.test(text);
     if (probing) {
       return {
         decision: "answer",
@@ -241,7 +249,7 @@ export class FixtureBrain implements OperatorBrain {
     }
 
     // --- Shipping requested on a local-only item ---
-    if (!p.shippingAllowed && /(ship|send|courier|post|delivery|envío|enviar)/.test(text)) {
+    if (!p.shippingAllowed && SHIPPING_PATTERN.test(text)) {
       return {
         decision: "answer",
         reply:
@@ -252,9 +260,7 @@ export class FixtureBrain implements OperatorBrain {
     }
 
     // --- Manipulation / urgency / "pay later" / "send first" with no real offer ---
-    const manipulative = /(trust me|pay (you )?later|pay after|i'?ll pay (you )?(tomorrow|later|when)|send (it )?(first|before)|ship (it )?(first|before)|reserve (it|this)|hold (it|this) for|deposit later|do me a favou?r|my kid|sick|emergency|urgent|last (bit of )?money|i'?m broke|for free|charity|give it to me)/.test(
-      text
-    );
+    const manipulative = MANIPULATIVE_PATTERN.test(text);
     if (manipulative && offer === undefined) {
       return {
         decision: "answer",
@@ -267,12 +273,8 @@ export class FixtureBrain implements OperatorBrain {
     // --- Buyer agrees in words (no new number): close at our standing ask. ---
     // Natural buyer behaviour ("ok, deal" / "vale, me lo quedo") must close the
     // sale, otherwise the agent loops forever and no Stripe link is ever shown.
-    const agrees = /(\bdeal\b|\bsold\b|i'?ll take it|i will take it|i'?ll buy|let'?s do it|works for me|sounds good|that works|me lo (quedo|llevo)|lo compro|trato( hecho)?|de acuerdo|acepto|vale,? (lo|me|trato))/.test(
-      text
-    );
-    const bareYes = /^\s*(ok(ay)?|yes|yep|yeah|sure|fine|deal|s[íi]|vale|venga|hecho|done)\s*[.!]?\s*$/i.test(
-      message.text
-    );
+    const agrees = AGREES_PATTERN.test(text);
+    const bareYes = BARE_YES_PATTERN.test(message.text);
     if (offer === undefined && !text.includes("?") && (agrees || (bareYes && lastCounter !== undefined))) {
       return {
         decision: "accept",
