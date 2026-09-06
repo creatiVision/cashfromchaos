@@ -1,9 +1,61 @@
-import { extractJson, runHermesJson } from '../hermesCli';
+import { extractJson, runHermesJson, getValidatedHermesBin, runHermes } from '../hermesCli';
 import * as childProcess from 'node:child_process';
 
 jest.mock('node:child_process', () => ({
   execFile: jest.fn(),
 }));
+
+describe('getValidatedHermesBin', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it('returns default "hackathon" when HERMES_BIN is unset', () => {
+    delete process.env.HERMES_BIN;
+    expect(getValidatedHermesBin()).toBe('hackathon');
+  });
+
+  it('returns valid custom binary names and paths', () => {
+    expect(getValidatedHermesBin('hermes')).toBe('hermes');
+    expect(getValidatedHermesBin('hermes-cli_v1.0')).toBe('hermes-cli_v1.0');
+    expect(getValidatedHermesBin('/usr/local/bin/hermes')).toBe('/usr/local/bin/hermes');
+    expect(getValidatedHermesBin('./bin/hermes')).toBe('./bin/hermes');
+  });
+
+  it('rejects empty or whitespace-only inputs', () => {
+    expect(() => getValidatedHermesBin('')).toThrow('HERMES_BIN must be a non-empty string');
+    expect(() => getValidatedHermesBin('   ')).toThrow('HERMES_BIN must be a non-empty string');
+  });
+
+  it('rejects binary names starting with a hyphen (flag injection prevention)', () => {
+    expect(() => getValidatedHermesBin('-o')).toThrow('binary name cannot start with a hyphen');
+    expect(() => getValidatedHermesBin('--eval')).toThrow('binary name cannot start with a hyphen');
+  });
+
+  it('rejects path traversal attempts', () => {
+    expect(() => getValidatedHermesBin('../bin/hermes')).toThrow('path traversal ("..") is not allowed');
+    expect(() => getValidatedHermesBin('/usr/bin/../bin/hermes')).toThrow('path traversal ("..") is not allowed');
+  });
+
+  it('rejects null bytes', () => {
+    expect(() => getValidatedHermesBin('hermes\0')).toThrow('contains null byte');
+  });
+
+  it('rejects unsafe characters and command injection attempts', () => {
+    expect(() => getValidatedHermesBin('hermes; rm -rf /')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesBin('hermes & calc')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesBin('hermes | grep foo')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesBin('hermes $VAR')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesBin('hermes`id`')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesBin('hermes command')).toThrow('contains unsafe characters');
+  });
+});
 
 describe('extractJson', () => {
   it('extracts plain JSON objects', () => {
@@ -86,5 +138,15 @@ describe('runHermesJson', () => {
     await expect(runHermesJson('Analyze item')).rejects.toThrow(
       'hermes did not return parseable JSON: Sorry, I failed to generate JSON.'
     );
+  });
+
+  it('rejects when HERMES_BIN environment variable is invalid', () => {
+    const originalEnv = process.env.HERMES_BIN;
+    process.env.HERMES_BIN = 'unsafe_bin; id';
+    try {
+      expect(() => runHermes('hello')).toThrow('contains unsafe characters');
+    } finally {
+      process.env.HERMES_BIN = originalEnv;
+    }
   });
 });

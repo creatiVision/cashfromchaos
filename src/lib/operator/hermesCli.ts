@@ -16,21 +16,39 @@
 
 import { execFile } from "node:child_process";
 
-// IMPORTANT: default to the isolated `hackathon` profile wrapper, NOT bare
-// `hermes`. Bare `hermes` runs the user's personal `default` profile (OpenAI
-// Codex / ChatGPT Plus) and bills their personal quota — which we must never
-// touch from the demo. Each Hermes profile has its own model/keys, and the
-// per-profile wrapper command equals the profile name (e.g. `hackathon`).
-// Override with HERMES_BIN=hermes only if you deliberately want the default
-// profile.
-const HERMES_BIN = process.env.HERMES_BIN ?? "hackathon";
 const HERMES_TIMEOUT_MS = Number(process.env.HERMES_TIMEOUT_MS ?? 60_000);
+
+/**
+ * Validates and returns the binary command or path for Hermes.
+ * Restricts binary name to safe characters and prevents option injection / path traversal.
+ */
+export function getValidatedHermesBin(overrideBin?: string): string {
+  const bin = overrideBin ?? process.env.HERMES_BIN ?? "hackathon";
+  if (!bin || typeof bin !== "string" || bin.trim() === "") {
+    throw new Error("HERMES_BIN must be a non-empty string");
+  }
+  if (bin.includes("\0")) {
+    throw new Error("Invalid HERMES_BIN: contains null byte");
+  }
+  if (bin.includes("..")) {
+    throw new Error(`Invalid HERMES_BIN: path traversal ("..") is not allowed: ${bin}`);
+  }
+  if (bin.startsWith("-")) {
+    throw new Error(`Invalid HERMES_BIN: binary name cannot start with a hyphen: ${bin}`);
+  }
+  const SAFE_BIN_REGEX = /^[a-zA-Z0-9_.\-/]+$/;
+  if (!SAFE_BIN_REGEX.test(bin)) {
+    throw new Error(`Invalid HERMES_BIN: contains unsafe characters: ${bin}`);
+  }
+  return bin;
+}
 
 /**
  * Run a single self-contained prompt through the Hermes CLI and return its
  * final text response. Throws on any failure so callers can fall back.
  */
 export function runHermes(prompt: string): Promise<string> {
+  const hermesBin = getValidatedHermesBin();
   const args = ["-z", prompt];
   // Optional model override; otherwise Hermes uses its configured default
   // (e.g. the user's OAuth provider), which is the most reliable path.
@@ -39,7 +57,7 @@ export function runHermes(prompt: string): Promise<string> {
 
   return new Promise((resolve, reject) => {
     execFile(
-      HERMES_BIN,
+      hermesBin,
       args,
       { timeout: HERMES_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, encoding: "utf8" },
       (err, stdout, stderr) => {
@@ -60,7 +78,7 @@ export function runHermes(prompt: string): Promise<string> {
 
 /**
  * Run a prompt that must return JSON, and parse it. Tolerates models that wrap
- * the object in prose or ```json fences by extracting the first balanced {...}.
+ * the object in prose or \`\`\`json fences by extracting the first balanced {...}.
  */
 export async function runHermesJson<T>(prompt: string): Promise<T> {
   const raw = await runHermes(
