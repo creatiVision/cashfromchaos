@@ -63,6 +63,44 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
       const smartwatchResult = matchArchetype("Garmin vivoactive forerunner smartwatch");
       expect(smartwatchResult.id).toBe("smartwatch");
     });
+
+    it("should only score keyword presence once even if repeated in clue text", () => {
+      // "garmin garmin garmin" -> "garmin".length = 6 once because clue.includes("garmin") is boolean
+      const singleHit = matchArchetype("garmin watch");
+      const repeatedHit = matchArchetype("garmin garmin garmin watch");
+      expect(singleHit.id).toBe("smartwatch");
+      expect(repeatedHit.id).toBe("smartwatch");
+    });
+
+    it("should match keywords embedded as substrings within larger compound words", () => {
+      // "pedalboard" contains keyword "pedal"
+      expect(matchArchetype("pedalboard").id).toBe("guitar-pedal");
+    });
+  });
+
+  describe("Formatting, Punctuation, and Multiline Handling", () => {
+    it("should handle clues with whitespace, newlines, tabs, and heavy punctuation", () => {
+      const clue = `
+        --- ITEM DETAILS ---
+        Title: Garmin GPS Smartwatch!!
+        Description:\tIncludes charger & extra straps.
+        Condition: Good (used).
+      `;
+      expect(matchArchetype(clue).id).toBe("smartwatch");
+    });
+  });
+
+  describe("Reference Equality", () => {
+    it("should return exact object reference from ARCHETYPES when matched", () => {
+      const matched = matchArchetype("Boss overdrive guitar pedal stompbox");
+      const expected = ARCHETYPES.find((a) => a.id === "guitar-pedal");
+      expect(matched).toBe(expected);
+    });
+
+    it("should return exact object reference GENERIC_ARCHETYPE when unmatched", () => {
+      const matched = matchArchetype("completely unknown item");
+      expect(matched).toBe(GENERIC_ARCHETYPE);
+    });
   });
 
   describe("Tie-breaking Behavior", () => {
@@ -76,7 +114,7 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
     });
   });
 
-  describe("ARCHETYPES Data Integrity", () => {
+  describe("ARCHETYPES Data Integrity & Coverage", () => {
     it("should have unique IDs for all archetypes", () => {
       const ids = ARCHETYPES.map((a) => a.id);
       const uniqueIds = new Set(ids);
@@ -95,6 +133,15 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
     it("should have empty keywords for GENERIC_ARCHETYPE", () => {
       expect(GENERIC_ARCHETYPE.keywords).toEqual([]);
       expect(GENERIC_ARCHETYPE.marketLow).toBeLessThan(GENERIC_ARCHETYPE.marketHigh);
+    });
+
+    it("should match every defined keyword across all archetypes to a non-generic archetype", () => {
+      for (const archetype of ARCHETYPES) {
+        for (const keyword of archetype.keywords) {
+          const matched = matchArchetype(keyword);
+          expect(matched.id).not.toBe(GENERIC_ARCHETYPE.id);
+        }
+      }
     });
   });
 });
