@@ -11,13 +11,20 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   await ensureSeeded();
   const items = listItems();
-  const live = items.filter((i) => i.status !== "payout-released").length;
-  const earned = items
-    .filter((i) => i.payment.status === "released")
-    .reduce((acc, i) => acc + netPayout(i), 0);
-  const pipeline = items
-    .filter((i) => i.payment.status !== "released")
-    .reduce((acc, i) => acc + (i.payment.amount || i.policy.targetPrice), 0);
+  const { live, earned, pipeline } = items.reduce(
+    (acc, item) => {
+      if (item.status !== "payout-released") {
+        acc.live += 1;
+      }
+      if (item.payment.status === "released") {
+        acc.earned += netPayout(item);
+      } else {
+        acc.pipeline += item.payment.amount || item.policy.targetPrice;
+      }
+      return acc;
+    },
+    { live: 0, earned: 0, pipeline: 0 }
+  );
 
   return (
     <div className="space-y-6">
