@@ -97,6 +97,8 @@ describe("round2", () => {
     expect(round2(10.256)).toBe(10.26);
     expect(round2(10.254)).toBe(10.25);
     expect(round2(1.004)).toBe(1);
+    expect(round2(0.005)).toBe(0.01);
+    expect(round2(0.004)).toBe(0);
   });
 
   it("handles floating point precision quirks", () => {
