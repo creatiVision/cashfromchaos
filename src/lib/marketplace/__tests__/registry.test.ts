@@ -87,4 +87,28 @@ describe("Marketplace Registry", () => {
       expect(totalByRegion).toEqual(allAdapters().length);
     });
   });
+
+  describe("createListing", () => {
+    it("should create listing with a valid UUID externalId", async () => {
+      const adapter = getAdapter("cashfromchaos-sandbox");
+      expect(adapter).toBeDefined();
+
+      const result = await adapter!.createListing({
+        channelId: "cashfromchaos-sandbox",
+        title: "Test Listing",
+        body: "Test Description",
+        tags: ["test"],
+        price: 100,
+        currency: "EUR",
+      });
+
+      expect(result.channelId).toBe("cashfromchaos-sandbox");
+      expect(result.status).toBe("live");
+      expect(result.url).toBe("/market/listing");
+
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const externalIdSuffix = result.externalId.replace("cashfromchaos-sandbox_", "");
+      expect(externalIdSuffix).toMatch(uuidPattern);
+    });
+  });
 });
