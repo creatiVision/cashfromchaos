@@ -20,7 +20,7 @@ import type {
   OperatorBrain,
 } from "@/lib/types";
 import { getAdapter } from "@/lib/marketplace/registry";
-import { matchArchetype, type Archetype } from "@/lib/operator/archetypes";
+import { matchArchetype } from "@/lib/operator/archetypes";
 
 // Pre-compiled RegExp patterns for condition refinement & buyer message handling
 const FAULTY_CONDITION_PATTERN = /(faulty|not work|broken|for parts)/;
@@ -58,7 +58,7 @@ function channelOption(id: string, rank: number, category: string): MarketplaceO
 }
 
 /** Apply seller answers to refine condition + price band. */
-function refineWithAnswers(a: Archetype, intake: ItemIntake): { low: number; high: number; notes: string[] } {
+function refineWithAnswers(a: ReturnType<typeof matchArchetype>, intake: ItemIntake): { low: number; high: number; notes: string[] } {
   let low = a.marketLow;
   let high = a.marketHigh;
   const notes: string[] = [];
@@ -81,7 +81,7 @@ function refineWithAnswers(a: Archetype, intake: ItemIntake): { low: number; hig
 }
 
 /** Effective fulfillment posture: seller override wins over archetype default. */
-function effectiveFulfillment(a: Archetype, intake?: ItemIntake): FulfillmentMode {
+function effectiveFulfillment(a: ReturnType<typeof matchArchetype>, intake?: ItemIntake): FulfillmentMode {
   const o = intake?.fulfillmentOverride;
   return !o || o === "auto" ? a.fulfillment : o;
 }
