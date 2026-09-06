@@ -50,14 +50,37 @@ describe("eur", () => {
 });
 
 describe("round2", () => {
-  it("rounds numbers to 2 decimal places", () => {
+  it("preserves whole numbers and 1 or 2 decimal place numbers", () => {
+    expect(round2(0)).toBe(0);
+    expect(round2(10)).toBe(10);
+    expect(round2(10.5)).toBe(10.5);
+    expect(round2(10.25)).toBe(10.25);
+  });
+
+  it("rounds positive numbers to 2 decimal places (including 10.123 -> 10.12 and 10.125 -> 10.13)", () => {
     expect(round2(10.123)).toBe(10.12);
     expect(round2(10.125)).toBe(10.13);
     expect(round2(12.3456)).toBe(12.35);
     expect(round2(12.341)).toBe(12.34);
     expect(round2(10.556)).toBe(10.56);
     expect(round2(10.554)).toBe(10.55);
-    expect(round2(10)).toBe(10);
+    expect(round2(1.004)).toBe(1);
+    expect(round2(0.005)).toBe(0.01);
+    expect(round2(0.004)).toBe(0);
+  });
+
+  it("handles floating point arithmetic quirks correctly", () => {
+    expect(round2(0.1 + 0.2)).toBe(0.3);
+    expect(round2(0.1 + 0.7)).toBe(0.8);
+    expect(round2(1.005)).toBe(1);
+  });
+
+  it("handles negative numbers correctly", () => {
+    expect(round2(-10.123)).toBe(-10.12);
+    expect(round2(-10.125)).toBe(-10.12);
+    expect(round2(-10.126)).toBe(-10.13);
+    expect(round2(-10.555)).toBe(-10.55);
+    expect(round2(-10.556)).toBe(-10.56);
   });
 });
 
