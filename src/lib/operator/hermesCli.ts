@@ -75,7 +75,7 @@ export async function runHermesJson<T>(prompt: string): Promise<T> {
 }
 
 /** Pull the first balanced JSON object out of a possibly-noisy string. */
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : text;
   const start = candidate.indexOf("{");
