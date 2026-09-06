@@ -125,6 +125,30 @@ describe("Marketplace Registry", () => {
   });
 
   describe("supportsCategory", () => {
+    it("should return true when category matches strengths (case-insensitive and partial)", () => {
+      const collectorAdapter = getAdapter("collector-forum-mock");
+      expect(collectorAdapter).toBeDefined();
+
+      expect(collectorAdapter!.supportsCategory("Pokemon Cards")).toBe(true);
+      expect(collectorAdapter!.supportsCategory("TRADING CARDS")).toBe(true);
+      expect(collectorAdapter!.supportsCategory("TCG")).toBe(true);
+    });
+
+    it("should return false when category does not match adapter strengths", () => {
+      const collectorAdapter = getAdapter("collector-forum-mock");
+      expect(collectorAdapter).toBeDefined();
+
+      expect(collectorAdapter!.supportsCategory("Heavy Machinery")).toBe(false);
+      expect(collectorAdapter!.supportsCategory("Kitchen Appliance")).toBe(false);
+    });
+
+    it("should match empty string strength for sandbox adapter", () => {
+      const sandboxAdapter = getAdapter("cashfromchaos-sandbox");
+      expect(sandboxAdapter).toBeDefined();
+
+      expect(sandboxAdapter!.supportsCategory("Any Category")).toBe(true);
+    });
+
     it("should return true when category matches a strength case-insensitively", () => {
       const adapter = getAdapter("reverb-mock");
       expect(adapter).toBeDefined();
