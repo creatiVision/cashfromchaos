@@ -8,9 +8,20 @@ export function resolveTrustedOrigin(req: NextRequest): string | undefined {
   const rawHost = req.headers.get("host")?.trim() || "";
   if (!rawHost) return undefined;
 
+  // Validate rawHost structure before URL parsing to prevent Host Header parsing attacks
+  // (e.g. userinfo injection, trailing paths/queries, or backslashes)
+  const standardHostRegex = /^[a-zA-Z0-9.-]+(?::\d+)?$/;
+  const ipv6HostRegex = /^\[[a-fA-F0-9:]+\](?::\d+)?$/;
+  if (!standardHostRegex.test(rawHost) && !ipv6HostRegex.test(rawHost)) {
+    return undefined;
+  }
+
   try {
-    // Safely parse the hostname using the URL object to avoid parsing attacks (e.g. userinfo, trailing query)
+    // Safely parse the hostname using the URL object to avoid parsing attacks
     const dummyUrl = new URL(`http://${rawHost}`);
+    if (dummyUrl.username || dummyUrl.password || (dummyUrl.pathname !== "/" && dummyUrl.pathname !== "")) {
+      return undefined;
+    }
     const hostWithPort = dummyUrl.host.toLowerCase();
     const hostname = dummyUrl.hostname.toLowerCase();
 
