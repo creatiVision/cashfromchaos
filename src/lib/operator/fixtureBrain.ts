@@ -22,14 +22,14 @@ import type {
 import { getAdapter } from "@/lib/marketplace/registry";
 import { matchArchetype, type Archetype } from "@/lib/operator/archetypes";
 
-// Module-level regular expressions hoisted to avoid recompilation overhead.
-const FAULTY_PATTERN = /(faulty|not work|broken|for parts)/;
-const PERFECT_PATTERN = /(perfect|spotless|box \+ adapter|works perfectly|english|a few holos)/;
+// Pre-compiled RegExp patterns for condition refinement & buyer message handling
+const FAULTY_CONDITION_PATTERN = /(faulty|not work|broken|for parts)/;
+const POSITIVE_CONDITION_PATTERN = /(perfect|spotless|box \+ adapter|works perfectly|english|a few holos)/;
 const MINOR_WEAR_PATTERN = /(minor|some|needs a clean|adapter only)/;
 
 const SCAM_PATTERN = /(whatsapp|western union|bizum to|paypal friends|gift card|wire transfer|click this link|shipping company i use|overpay|cashier'?s? che(que|ck)|send.*extra|pay (you )?more than|agent will (collect|pick))/;
 const PROBING_PATTERN = /(your address|where do you live|home address|your phone|phone number|whatsapp|instagram|tik ?tok|your email|post ?code|zip code|meet at your|come to your (home|place|house)|full name|real name|exact (location|address))/;
-const SHIPPING_PATTERN = /(ship|send|courier|post|delivery|envío|enviar)/;
+const SHIPPING_REQUEST_PATTERN = /(ship|send|courier|post|delivery|envío|enviar)/;
 const MANIPULATIVE_PATTERN = /(trust me|pay (you )?later|pay after|i'?ll pay (you )?(tomorrow|later|when)|send (it )?(first|before)|ship (it )?(first|before)|reserve (it|this)|hold (it|this) for|deposit later|do me a favou?r|my kid|sick|emergency|urgent|last (bit of )?money|i'?m broke|for free|charity|give it to me)/;
 const AGREES_PATTERN = /(\bdeal\b|\bsold\b|i'?ll take it|i will take it|i'?ll buy|let'?s do it|works for me|sounds good|that works|me lo (quedo|llevo)|lo compro|trato( hecho)?|de acuerdo|acepto|vale,? (lo|me|trato))/;
 const BARE_YES_PATTERN = /^\s*(ok(ay)?|yes|yep|yeah|sure|fine|deal|s[íi]|vale|venga|hecho|done)\s*[.!]?\s*$/i;
@@ -65,11 +65,11 @@ function refineWithAnswers(a: Archetype, intake: ItemIntake): { low: number; hig
   const ans = intake.answers ?? {};
   for (const val of Object.values(ans)) {
     const v = val.toLowerCase();
-    if (FAULTY_PATTERN.test(v)) {
+    if (FAULTY_CONDITION_PATTERN.test(v)) {
       low = round2(low * 0.45);
       high = round2(high * 0.5);
       notes.push("Seller reports faulty/for-parts → price band cut materially.");
-    } else if (PERFECT_PATTERN.test(v)) {
+    } else if (POSITIVE_CONDITION_PATTERN.test(v)) {
       low = round2(low * 1.08);
       high = round2(high * 1.12);
       notes.push("Positive condition/accessory signal → band nudged up.");
@@ -249,7 +249,7 @@ export class FixtureBrain implements OperatorBrain {
     }
 
     // --- Shipping requested on a local-only item ---
-    if (!p.shippingAllowed && SHIPPING_PATTERN.test(text)) {
+    if (!p.shippingAllowed && SHIPPING_REQUEST_PATTERN.test(text)) {
       return {
         decision: "answer",
         reply:
