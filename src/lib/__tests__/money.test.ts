@@ -87,18 +87,39 @@ describe("round2", () => {
     expect(round2(10.5)).toBe(10.5);
     expect(round2(10.25)).toBe(10.25);
     expect(round2(0)).toBe(0);
+    expect(round2(1000000)).toBe(1000000);
   });
 
-  it("rounds decimal numbers correctly (e.g. 10.123 -> 10.12, 10.125 -> 10.13)", () => {
-    expect(round2(10.123)).toBe(10.12);
-    expect(round2(10.125)).toBe(10.13);
-    expect(round2(10.555)).toBe(10.56);
-    expect(round2(10.554)).toBe(10.55);
-    expect(round2(10.256)).toBe(10.26);
-    expect(round2(10.254)).toBe(10.25);
-    expect(round2(1.004)).toBe(1);
-    expect(round2(0.005)).toBe(0.01);
-    expect(round2(0.004)).toBe(0);
+  it.each([
+    [10.123, 10.12],
+    [10.125, 10.13],
+    [10.1251, 10.13],
+    [10.555, 10.56],
+    [10.554, 10.55],
+    [10.256, 10.26],
+    [10.254, 10.25],
+    [1.004, 1],
+    [0.001, 0],
+    [0.0049, 0],
+    [0.005, 0.01],
+    [0.009, 0.01],
+    [1234567.891, 1234567.89],
+    [1234567.895, 1234567.90],
+  ])("rounds positive decimal %p to %p", (input, expected) => {
+    expect(round2(input)).toBe(expected);
+  });
+
+  it.each([
+    [-10.123, -10.12],
+    [-10.125, -10.12],
+    [-10.256, -10.26],
+    [-10.555, -10.55],
+    [-10.556, -10.56],
+    [-0.001, -0],
+    [-0.005, -0],
+    [-0.006, -0.01],
+  ])("rounds negative decimal %p to %p", (input, expected) => {
+    expect(round2(input)).toBe(expected);
   });
 
   it("handles floating point precision quirks", () => {
@@ -106,14 +127,6 @@ describe("round2", () => {
     expect(round2(0.1 + 0.7)).toBe(0.8);
     // Note: 1.005 * 100 in JS is 100.49999999999999, so Math.round evaluates to 100 -> 1
     expect(round2(1.005)).toBe(1);
-  });
-
-  it("handles negative numbers", () => {
-    expect(round2(-10.123)).toBe(-10.12);
-    expect(round2(-10.125)).toBe(-10.12);
-    expect(round2(-10.256)).toBe(-10.26);
-    expect(round2(-10.555)).toBe(-10.55);
-    expect(round2(-10.556)).toBe(-10.56);
   });
 });
 

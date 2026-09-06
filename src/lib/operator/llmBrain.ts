@@ -34,13 +34,6 @@ import type {
 import { FixtureBrain } from "@/lib/operator/fixtureBrain";
 import { runHermes, runHermesJson } from "@/lib/operator/hermesCli";
 
-/**
- * Recommended live model for the operator brain (see CLAUDE.md / claude-api):
- * Anthropic Claude Opus 4.8 — id "claude-opus-4-8". When unset, Hermes uses
- * its own configured default provider/model.
- */
-export const RECOMMENDED_MODEL = "claude-opus-4-8";
-
 export class HermesBrain extends FixtureBrain {
   readonly name = "hermes";
 

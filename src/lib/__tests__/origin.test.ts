@@ -55,4 +55,35 @@ describe("resolveTrustedOrigin", () => {
     });
     expect(resolveTrustedOrigin(req)).toBeUndefined();
   });
+
+  it("should reject userinfo injection in host header", () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      headers: { host: "evil.com@localhost:3000" },
+    });
+    expect(resolveTrustedOrigin(req)).toBeUndefined();
+  });
+
+  it("should reject path / query / fragment injection in host header", () => {
+    const req1 = new NextRequest("http://localhost:3000/api/checkout", {
+      headers: { host: "localhost:3000/evil" },
+    });
+    expect(resolveTrustedOrigin(req1)).toBeUndefined();
+
+    const req2 = new NextRequest("http://localhost:3000/api/checkout", {
+      headers: { host: "localhost:3000?evil=1" },
+    });
+    expect(resolveTrustedOrigin(req2)).toBeUndefined();
+
+    const req3 = new NextRequest("http://localhost:3000/api/checkout", {
+      headers: { host: "localhost:3000#evil" },
+    });
+    expect(resolveTrustedOrigin(req3)).toBeUndefined();
+  });
+
+  it("should reject backslash injection in host header", () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      headers: { host: "localhost:3000\evil.com" },
+    });
+    expect(resolveTrustedOrigin(req)).toBeUndefined();
+  });
 });
