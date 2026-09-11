@@ -16,3 +16,7 @@ item.json
 # The generator script (scripts/) is tracked; its rendered output is not.
 docs/
 ARCHITECTURE_DECISION.md
+
+# Graphify knowledge graph (synced via Syncthing, never committed)
+graphify-out/
+graphify-out.*
