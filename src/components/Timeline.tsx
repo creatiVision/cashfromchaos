@@ -12,10 +12,11 @@ const FLOW: { key: TransactionStatus; label: string }[] = [
   { key: "payout-released", label: "Payout" },
 ];
 
+const ORDER = FLOW.map((f) => f.key);
+
 export function Timeline({ status }: { status: TransactionStatus }) {
   // analyzed and listed share the entry point; treat them together.
-  const order = FLOW.map((f) => f.key);
-  let current = order.indexOf(status);
+  let current = ORDER.indexOf(status);
   if (status === "escalated") current = 2; // sits at engagement
   if (current < 0) current = 1;
 
