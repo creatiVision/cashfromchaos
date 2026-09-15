@@ -7,6 +7,10 @@ import { eur } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
+function isSimulatedAllowed(): boolean {
+  return process.env.DEMO_MODE === "true" || process.env.NODE_ENV !== "production";
+}
+
 // Stripe success_url and the simulated flow both land here.
 export async function GET(req: NextRequest) {
   const itemId = req.nextUrl.searchParams.get("item");
@@ -32,7 +36,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Invalid Stripe session" }, { status: 400 });
     }
   } else {
-    // Simulated flow validation
+    // Simulated flow validation only allowed if explicitly enabled (e.g., DEMO_MODE=true) or not in production
+    if (!isSimulatedAllowed()) {
+      return NextResponse.json(
+        { error: "Simulated payments are disabled in production mode" },
+        { status: 403 }
+      );
+    }
     if (sessionId !== `sim_${itemId}`) {
       return NextResponse.json({ error: "Invalid simulated session" }, { status: 400 });
     }
