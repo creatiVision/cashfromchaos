@@ -1,3 +1,4 @@
+import Stripe from 'stripe';
 import {
   buildLedger,
   netPayout,
@@ -7,6 +8,21 @@ import {
   createCheckout,
 } from './payments';
 import { Item, LedgerEntry } from './types';
+
+const mockCreateSession = jest.fn();
+
+jest.mock('stripe', () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({
+      checkout: {
+        sessions: {
+          create: mockCreateSession,
+        },
+      },
+    })),
+  };
+});
 
 function mockItem(
   paymentAmount: number,
@@ -36,6 +52,7 @@ describe('payments module', () => {
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv };
+    mockCreateSession.mockReset();
   });
 
   afterAll(() => {
@@ -219,45 +236,168 @@ describe('payments module', () => {
   });
 
   describe('createCheckout', () => {
-    it('uses simulated provider when requested provider is unconfigured', async () => {
-      delete process.env.STRIPE_SECRET_KEY;
-      delete process.env.PAYPAL_CLIENT_ID;
-      delete process.env.PAYPAL_CLIENT_SECRET;
-      process.env.PAYMENT_PROVIDER = 'stripe';
+    describe('Stripe Provider', () => {
+      beforeEach(() => {
+        process.env.STRIPE_SECRET_KEY = 'sk_test_mock_123';
+        process.env.PAYMENT_PROVIDER = 'stripe';
+      });
 
-      const item = mockItem(150, 'eBay');
-      const checkout = await createCheckout(item);
+      it('creates Stripe checkout session with correctly formatted line items and URLs', async () => {
+        mockCreateSession.mockResolvedValueOnce({
+          id: 'cs_test_session_999',
+          url: 'https://checkout.stripe.com/pay/cs_test_session_999',
+        });
 
-      expect(checkout.provider).toBe('simulated');
-      expect(checkout.sessionId).toBe('sim_item-123');
-      expect(checkout.url).toBe(
-        'http://localhost:3000/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
-      );
+        const item = mockItem(149.99, 'eBay');
+        const checkout = await createCheckout(item, 'https://my-app.com');
+
+        expect(checkout).toEqual({
+          provider: 'stripe',
+          sessionId: 'cs_test_session_999',
+          url: 'https://checkout.stripe.com/pay/cs_test_session_999',
+        });
+
+        expect(mockCreateSession).toHaveBeenCalledWith({
+          mode: 'payment',
+          payment_method_types: ['card', 'paypal'],
+          line_items: [
+            {
+              quantity: 1,
+              price_data: {
+                currency: 'eur',
+                unit_amount: 14999,
+                product_data: {
+                  name: 'Test Product',
+                  description: 'CashFromChaos held payment · released on delivery confirmation',
+                },
+              },
+            },
+          ],
+          success_url: 'https://my-app.com/api/checkout/confirm?item=item-123&session={CHECKOUT_SESSION_ID}',
+          cancel_url: 'https://my-app.com/market/item-123?canceled=1',
+          metadata: { itemId: 'item-123' },
+        });
+      });
+
+      it('falls back to marketplace item URL if session.url is null or undefined', async () => {
+        mockCreateSession.mockResolvedValueOnce({
+          id: 'cs_test_session_null_url',
+          url: null,
+        });
+
+        const item = mockItem(50, 'Direct');
+        const checkout = await createCheckout(item, 'https://my-app.com');
+
+        expect(checkout.provider).toBe('stripe');
+        expect(checkout.sessionId).toBe('cs_test_session_null_url');
+        expect(checkout.url).toBe('https://my-app.com/market/item-123');
+      });
+
+      it('propagates error when Stripe session creation throws an exception', async () => {
+        mockCreateSession.mockRejectedValueOnce(new Error('Stripe API error: Invalid API key'));
+
+        const item = mockItem(50, 'Direct');
+        await expect(createCheckout(item, 'https://my-app.com')).rejects.toThrow('Stripe API error: Invalid API key');
+      });
     });
 
-    it('respects custom origin parameter', async () => {
-      delete process.env.STRIPE_SECRET_KEY;
-      const item = mockItem(150, 'eBay');
-      const checkout = await createCheckout(item, 'https://custom-origin.com');
+    describe('Provider Selection Edge Cases', () => {
+      it('handles case-insensitivity in PAYMENT_PROVIDER (e.g., "STRIPE", "Paypal")', async () => {
+        process.env.STRIPE_SECRET_KEY = 'sk_test_123';
+        process.env.PAYMENT_PROVIDER = 'STRIPE';
 
-      expect(checkout.url).toBe(
-        'https://custom-origin.com/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
-      );
+        mockCreateSession.mockResolvedValueOnce({
+          id: 'cs_case_test',
+          url: 'https://checkout.stripe.com/pay/cs_case_test',
+        });
+
+        const item = mockItem(100, 'Direct');
+        const checkoutStripe = await createCheckout(item);
+        expect(checkoutStripe.provider).toBe('stripe');
+
+        process.env.PAYPAL_CLIENT_ID = 'pp_id';
+        process.env.PAYPAL_CLIENT_SECRET = 'pp_secret';
+        process.env.PAYMENT_PROVIDER = 'Paypal';
+
+        const checkoutPaypal = await createCheckout(item);
+        expect(checkoutPaypal.provider).toBe('paypal');
+      });
+
+      it('falls back to simulated provider when PAYMENT_PROVIDER is an unknown/unsupported value', async () => {
+        process.env.PAYMENT_PROVIDER = 'crypto';
+
+        const item = mockItem(100, 'Direct');
+        const checkout = await createCheckout(item);
+
+        expect(checkout.provider).toBe('simulated');
+        expect(checkout.sessionId).toBe('sim_item-123');
+      });
+
+      it('falls back to simulated provider when stripe is requested but STRIPE_SECRET_KEY is missing', async () => {
+        delete process.env.STRIPE_SECRET_KEY;
+        process.env.PAYMENT_PROVIDER = 'stripe';
+
+        const item = mockItem(150, 'eBay');
+        const checkout = await createCheckout(item);
+
+        expect(checkout.provider).toBe('simulated');
+        expect(checkout.sessionId).toBe('sim_item-123');
+        expect(checkout.url).toBe(
+          'http://localhost:3000/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
+        );
+      });
+
+      it('falls back to simulated provider when paypal is requested but credentials are missing', async () => {
+        process.env.PAYMENT_PROVIDER = 'paypal';
+        delete process.env.PAYPAL_CLIENT_ID;
+        process.env.PAYPAL_CLIENT_SECRET = 'secret_only';
+
+        const item = mockItem(150, 'eBay');
+        const checkout1 = await createCheckout(item);
+        expect(checkout1.provider).toBe('simulated');
+
+        process.env.PAYPAL_CLIENT_ID = 'id_only';
+        delete process.env.PAYPAL_CLIENT_SECRET;
+
+        const checkout2 = await createCheckout(item);
+        expect(checkout2.provider).toBe('simulated');
+      });
     });
 
-    it('uses paypal provider when paypal is configured and requested', async () => {
-      process.env.PAYMENT_PROVIDER = 'paypal';
-      process.env.PAYPAL_CLIENT_ID = 'id';
-      process.env.PAYPAL_CLIENT_SECRET = 'secret';
+    describe('Origin and Base URL Fallbacks', () => {
+      it('uses custom origin argument when supplied', async () => {
+        delete process.env.STRIPE_SECRET_KEY;
+        const item = mockItem(150, 'eBay');
+        const checkout = await createCheckout(item, 'https://custom-origin.com');
 
-      const item = mockItem(200, 'Direct');
-      const checkout = await createCheckout(item, 'http://localhost:3000');
+        expect(checkout.url).toBe(
+          'https://custom-origin.com/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
+        );
+      });
 
-      expect(checkout.provider).toBe('paypal');
-      expect(checkout.sessionId).toBe('pp_item-123');
-      expect(checkout.url).toBe(
-        'http://localhost:3000/api/checkout/confirm?item=item-123&session=pp_item-123&provider=paypal'
-      );
+      it('uses NEXT_PUBLIC_BASE_URL when origin is omitted', async () => {
+        delete process.env.STRIPE_SECRET_KEY;
+        process.env.NEXT_PUBLIC_BASE_URL = 'https://staging.my-site.com';
+
+        const item = mockItem(150, 'eBay');
+        const checkout = await createCheckout(item);
+
+        expect(checkout.url).toBe(
+          'https://staging.my-site.com/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
+        );
+      });
+
+      it('uses default localhost:3000 when both origin and NEXT_PUBLIC_BASE_URL are missing', async () => {
+        delete process.env.STRIPE_SECRET_KEY;
+        delete process.env.NEXT_PUBLIC_BASE_URL;
+
+        const item = mockItem(150, 'eBay');
+        const checkout = await createCheckout(item);
+
+        expect(checkout.url).toBe(
+          'http://localhost:3000/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
+        );
+      });
     });
   });
 });
