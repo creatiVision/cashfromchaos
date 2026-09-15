@@ -86,6 +86,247 @@ function effectiveFulfillment(a: ReturnType<typeof matchArchetype>, intake?: Ite
   return !o || o === "auto" ? a.fulfillment : o;
 }
 
+/** Context object encapsulating calculated negotiation state and item/message references. */
+export interface NegotiationContext {
+  item: Item;
+  message: BuyerMessage;
+  policy: CommercePolicy;
+  analysis: ItemAnalysis;
+  text: string;
+  offer: number | undefined;
+  priorCounters: number[];
+  counterFloor: number;
+  lastCounter: number | undefined;
+  buyerOffers: number;
+  firm: boolean;
+  tol: number;
+  standingAsk: number;
+}
+
+function getNegotiationContext(item: Item, message: BuyerMessage): NegotiationContext {
+  const policy = item.policy;
+  const analysis = item.analysis;
+  const text = message.text.toLowerCase();
+  const offer = message.offer ?? parseOffer(message.text);
+
+  const priorCounters = item.agentReplies
+    .filter(
+      (r) =>
+        r.decision === "counter" &&
+        typeof r.price === "number" &&
+        (r.price as number) < policy.targetPrice
+    )
+    .map((r) => r.price as number);
+  const counterFloor = priorCounters.length ? Math.min(...priorCounters) : 0;
+  const lastCounter = priorCounters.length ? priorCounters[priorCounters.length - 1] : undefined;
+  const buyerOffers = item.messages.filter(
+    (m) => (m.offer ?? parseOffer(m.text)) !== undefined
+  ).length;
+  const firm = buyerOffers >= 2;
+  const tol = Math.max(2, Math.round(policy.targetPrice * 0.03));
+  const standingAsk = lastCounter ?? policy.targetPrice;
+
+  return {
+    item,
+    message,
+    policy,
+    analysis,
+    text,
+    offer,
+    priorCounters,
+    counterFloor,
+    lastCounter,
+    buyerOffers,
+    firm,
+    tol,
+    standingAsk,
+  };
+}
+
+/** Individual rule strategy function type for handling buyer messages. */
+export type BuyerMessageHandler = (ctx: NegotiationContext) => AgentReply | null;
+
+// --- Handler 1: Scam / off-platform / overpayment detection ---
+export const handleScam: BuyerMessageHandler = (ctx) => {
+  if (SCAM_PATTERN.test(ctx.text)) {
+    return {
+      decision: "escalate-human",
+      reply:
+        "Not happening — I keep everything on-platform with Stripe-protected payment, and I don't do overpayment or off-platform arrangements. Pay the asking price here and it's yours.",
+      reason: "Off-platform/overpayment/suspicious request → refuse + escalate per policy.",
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 2: Personal-info extraction → withhold until paid ---
+export const handleProbing: BuyerMessageHandler = (ctx) => {
+  if (PROBING_PATTERN.test(ctx.text)) {
+    return {
+      decision: "answer",
+      reply:
+        "I don't share the seller's address or personal contact before payment. Pay via Stripe and you'll get tracked shipping or a safe public pickup spot — that protects us both.",
+      reason: "Buyer probing for personal/contact details → withheld per privacy policy.",
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 3: Shipping requested on a local-only item ---
+export const handleShippingRequest: BuyerMessageHandler = (ctx) => {
+  if (!ctx.policy.shippingAllowed && SHIPPING_REQUEST_PATTERN.test(ctx.text)) {
+    return {
+      decision: "answer",
+      reply:
+        "This one is local pickup only — it's too bulky to ship sensibly. I can hold it for pickup if you're nearby.",
+      reason: "Item is local-pickup-only; declined shipping per fulfillment policy.",
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 4: Manipulation / urgency / "pay later" / "send first" with no real offer ---
+export const handleManipulation: BuyerMessageHandler = (ctx) => {
+  if (MANIPULATIVE_PATTERN.test(ctx.text) && ctx.offer === undefined) {
+    return {
+      decision: "answer",
+      reply: `I hear you, but the terms are firm: €${ctx.policy.targetPrice}, paid now through Stripe, then it ships. No holds, no pay-later — that's how I keep it fair for everyone.`,
+      reason: "Manipulation/urgency tactic, no concrete offer → hold terms, zero concession.",
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 5: Buyer agrees in words (no new number): close at our standing ask ---
+export const handleVerbalAgreement: BuyerMessageHandler = (ctx) => {
+  const agrees = AGREES_PATTERN.test(ctx.text);
+  const bareYes = BARE_YES_PATTERN.test(ctx.message.text);
+  if (ctx.offer === undefined && !ctx.text.includes("?") && (agrees || (bareYes && ctx.lastCounter !== undefined))) {
+    return {
+      decision: "accept",
+      price: ctx.standingAsk,
+      reply: `Great — €${ctx.standingAsk} it is. I'm sending a secure Stripe payment link now; pay today and it's yours.`,
+      reason: `Buyer accepted verbally → close at standing ask €${ctx.standingAsk}.`,
+      dealAgreed: true,
+      agreedPrice: ctx.standingAsk,
+    };
+  }
+  return null;
+};
+
+// --- Handler 6: No price named: confident, informational ---
+export const handleNoOffer: BuyerMessageHandler = (ctx) => {
+  if (ctx.offer === undefined) {
+    return {
+      decision: "answer",
+      reply:
+        `Happy to answer anything. It's €${ctx.policy.targetPrice}, condition exactly as described — ` +
+        `fair price for what it is. Want it?`,
+      reason: "No offer named → confident informational reply, no price movement.",
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 7: Implausibly high offer → don't take the bait (troll / overpayment scam) ---
+export const handleImplausibleOffer: BuyerMessageHandler = (ctx) => {
+  if (ctx.offer === undefined) return null;
+  const implausible = ctx.offer > Math.max(ctx.policy.targetPrice * 1.5, ctx.analysis.estimatedMarketHigh * 1.4);
+  if (implausible) {
+    return {
+      decision: "counter",
+      price: ctx.policy.targetPrice,
+      reply: `Appreciate the enthusiasm, but I'm not going to pretend that's a serious offer. The price is €${ctx.policy.targetPrice} — pay that today via Stripe and it's yours. I don't do overpayment deals.`,
+      reason: `Offer €${ctx.offer} implausibly above market (target €${ctx.policy.targetPrice}, high €${ctx.analysis.estimatedMarketHigh}) → likely troll/overpayment scam; hold at asking price, no inflated "deal".`,
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 8: Below the human-approval floor → firm, escalate ---
+export const handleLowballOffer: BuyerMessageHandler = (ctx) => {
+  if (ctx.offer === undefined) return null;
+  if (ctx.offer < ctx.policy.requireHumanBelow) {
+    const hold = niceRound(Math.max(ctx.policy.autoCounterDownTo, ctx.counterFloor));
+    return {
+      decision: "escalate-human",
+      price: ctx.policy.floorPrice,
+      reply:
+        `€${ctx.offer} is below what the seller will take and I'm not going under €${ctx.policy.floorPrice}. ` +
+        `€${hold} is a fair price for this and I can close today.`,
+      reason: `Offer €${ctx.offer} < floor €${ctx.policy.floorPrice} → requires human approval; held at €${hold}.`,
+      dealAgreed: false,
+    };
+  }
+  return null;
+};
+
+// --- Handler 9: Accept: buyer clears the auto-accept bar, OR meets our standing ask ---
+export const handleAutoAccept: BuyerMessageHandler = (ctx) => {
+  if (ctx.offer === undefined) return null;
+  const metOurAsk = ctx.offer >= ctx.standingAsk - ctx.tol;
+  if (ctx.offer >= ctx.policy.autoAcceptAtOrAbove - ctx.tol || metOurAsk) {
+    return {
+      decision: "accept",
+      price: ctx.offer,
+      reply: `€${ctx.offer} works — deal. I'll send a secure Stripe payment link now. Pay today and it's yours.`,
+      reason: metOurAsk
+        ? `Offer €${ctx.offer} meets our standing ask €${ctx.standingAsk} (±€${ctx.tol}) → accept (no haggling over a few euros).`
+        : `Offer €${ctx.offer} ≥ auto-accept €${ctx.policy.autoAcceptAtOrAbove} (±€${ctx.tol}) → accept.`,
+      dealAgreed: true,
+      agreedPrice: ctx.offer,
+    };
+  }
+  return null;
+};
+
+// --- Handler 10: Counter-offer calculation / negotiation convergence ---
+export const handleCounterOffer: BuyerMessageHandler = (ctx) => {
+  if (ctx.offer === undefined) return null;
+  const newAsk = niceRound(
+    Math.min(ctx.standingAsk, Math.max(ctx.policy.autoCounterDownTo, (ctx.standingAsk + ctx.offer) / 2))
+  );
+  if (ctx.offer >= newAsk - ctx.tol) {
+    return {
+      decision: "accept",
+      price: ctx.offer,
+      reply: `€${ctx.offer} — done. I'll send a secure Stripe payment link now; pay today and it's yours.`,
+      reason: `Counter €${newAsk} within €${ctx.tol} of offer €${ctx.offer} → accept rather than quibble.`,
+      dealAgreed: true,
+      agreedPrice: ctx.offer,
+    };
+  }
+  return {
+    decision: "counter",
+    price: newAsk,
+    reply: ctx.firm
+      ? `€${newAsk}, paid today via Stripe. That's my best — fair price and I've got other buyers watching.`
+      : `€${ctx.offer}'s a little under it. I can do €${newAsk} if you pay today via Stripe. Deal?`,
+    reason: `Offer €${ctx.offer} → counter €${newAsk} (concede half the gap from standing ask €${ctx.standingAsk} toward the buyer; never below counter-down €${ctx.policy.autoCounterDownTo}; never raise)${ctx.firm ? `; firm, round ${ctx.buyerOffers}` : ""}.`,
+    dealAgreed: false,
+  };
+};
+
+/** Chain of Responsibility handlers executed in sequence. */
+const buyerMessageHandlers: BuyerMessageHandler[] = [
+  handleScam,
+  handleProbing,
+  handleShippingRequest,
+  handleManipulation,
+  handleVerbalAgreement,
+  handleNoOffer,
+  handleImplausibleOffer,
+  handleLowballOffer,
+  handleAutoAccept,
+  handleCounterOffer,
+];
+
 export class FixtureBrain implements OperatorBrain {
   readonly name: string = "fixture";
 
@@ -195,175 +436,20 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async handleBuyerMessage(item: Item, message: BuyerMessage): Promise<AgentReply> {
-    const p = item.policy;
-    const a = item.analysis;
-    const text = message.text.toLowerCase();
-    const offer = message.offer ?? parseOffer(message.text);
+    const ctx = getNegotiationContext(item, message);
 
-    // Negotiation memory: never undercut a counter we've already made (a buyer
-    // can't grind us down round after round), and get firmer as rounds add up.
-    const priorCounters = item.agentReplies
-      .filter(
-        (r) =>
-          r.decision === "counter" &&
-          typeof r.price === "number" &&
-          (r.price as number) < p.targetPrice // genuine concessions only, not "hold at ask"
-      )
-      .map((r) => r.price as number);
-    const counterFloor = priorCounters.length ? Math.min(...priorCounters) : 0;
-    const lastCounter = priorCounters.length ? priorCounters[priorCounters.length - 1] : undefined;
-    const buyerOffers = item.messages.filter(
-      (m) => (m.offer ?? parseOffer(m.text)) !== undefined
-    ).length;
-    const firm = buyerOffers >= 2;
-    // Don't haggle over a couple of euros: if the buyer essentially meets our
-    // number, close it. ~3% of the asking price, min €2.
-    const tol = Math.max(2, Math.round(p.targetPrice * 0.03));
-    // The agent's current standing ask: the most recent genuine counter, or the
-    // list price if we haven't conceded yet. Counters only ever move DOWN from
-    // here toward the buyer — we never raise our ask when the buyer bids up.
-    const standingAsk = lastCounter ?? p.targetPrice;
-
-    // --- Scam / off-platform / overpayment detection ---
-    const scammy = SCAM_PATTERN.test(text);
-    if (scammy) {
-      return {
-        decision: "escalate-human",
-        reply:
-          "Not happening — I keep everything on-platform with Stripe-protected payment, and I don't do overpayment or off-platform arrangements. Pay the asking price here and it's yours.",
-        reason: "Off-platform/overpayment/suspicious request → refuse + escalate per policy.",
-        dealAgreed: false,
-      };
+    for (const handler of buyerMessageHandlers) {
+      const reply = handler(ctx);
+      if (reply) {
+        return reply;
+      }
     }
 
-    // --- Personal-info extraction → withhold until paid ---
-    const probing = PROBING_PATTERN.test(text);
-    if (probing) {
-      return {
-        decision: "answer",
-        reply:
-          "I don't share the seller's address or personal contact before payment. Pay via Stripe and you'll get tracked shipping or a safe public pickup spot — that protects us both.",
-        reason: "Buyer probing for personal/contact details → withheld per privacy policy.",
-        dealAgreed: false,
-      };
-    }
-
-    // --- Shipping requested on a local-only item ---
-    if (!p.shippingAllowed && SHIPPING_REQUEST_PATTERN.test(text)) {
-      return {
-        decision: "answer",
-        reply:
-          "This one is local pickup only — it's too bulky to ship sensibly. I can hold it for pickup if you're nearby.",
-        reason: "Item is local-pickup-only; declined shipping per fulfillment policy.",
-        dealAgreed: false,
-      };
-    }
-
-    // --- Manipulation / urgency / "pay later" / "send first" with no real offer ---
-    const manipulative = MANIPULATIVE_PATTERN.test(text);
-    if (manipulative && offer === undefined) {
-      return {
-        decision: "answer",
-        reply: `I hear you, but the terms are firm: €${p.targetPrice}, paid now through Stripe, then it ships. No holds, no pay-later — that's how I keep it fair for everyone.`,
-        reason: "Manipulation/urgency tactic, no concrete offer → hold terms, zero concession.",
-        dealAgreed: false,
-      };
-    }
-
-    // --- Buyer agrees in words (no new number): close at our standing ask. ---
-    // Natural buyer behaviour ("ok, deal" / "vale, me lo quedo") must close the
-    // sale, otherwise the agent loops forever and no Stripe link is ever shown.
-    const agrees = AGREES_PATTERN.test(text);
-    const bareYes = BARE_YES_PATTERN.test(message.text);
-    if (offer === undefined && !text.includes("?") && (agrees || (bareYes && lastCounter !== undefined))) {
-      return {
-        decision: "accept",
-        price: standingAsk,
-        reply: `Great — €${standingAsk} it is. I'm sending a secure Stripe payment link now; pay today and it's yours.`,
-        reason: `Buyer accepted verbally → close at standing ask €${standingAsk}.`,
-        dealAgreed: true,
-        agreedPrice: standingAsk,
-      };
-    }
-
-    // --- No price named: confident, informational ---
-    if (offer === undefined) {
-      return {
-        decision: "answer",
-        reply:
-          `Happy to answer anything. It's €${p.targetPrice}, condition exactly as described — ` +
-          `fair price for what it is. Want it?`,
-        reason: "No offer named → confident informational reply, no price movement.",
-        dealAgreed: false,
-      };
-    }
-
-    // --- Implausibly high offer → don't take the bait (troll / overpayment scam) ---
-    const implausible = offer > Math.max(p.targetPrice * 1.5, a.estimatedMarketHigh * 1.4);
-    if (implausible) {
-      return {
-        decision: "counter",
-        price: p.targetPrice,
-        reply: `Appreciate the enthusiasm, but I'm not going to pretend that's a serious offer. The price is €${p.targetPrice} — pay that today via Stripe and it's yours. I don't do overpayment deals.`,
-        reason: `Offer €${offer} implausibly above market (target €${p.targetPrice}, high €${a.estimatedMarketHigh}) → likely troll/overpayment scam; hold at asking price, no inflated "deal".`,
-        dealAgreed: false,
-      };
-    }
-
-    // --- Below the human-approval floor → firm, escalate ---
-    if (offer < p.requireHumanBelow) {
-      const hold = niceRound(Math.max(p.autoCounterDownTo, counterFloor));
-      return {
-        decision: "escalate-human",
-        price: p.floorPrice,
-        reply:
-          `€${offer} is below what the seller will take and I'm not going under €${p.floorPrice}. ` +
-          `€${hold} is a fair price for this and I can close today.`,
-        reason: `Offer €${offer} < floor €${p.floorPrice} → requires human approval; held at €${hold}.`,
-        dealAgreed: false,
-      };
-    }
-
-    // --- Accept: buyer clears the auto-accept bar, OR meets our standing ask. ---
-    const metOurAsk = offer >= standingAsk - tol;
-    if (offer >= p.autoAcceptAtOrAbove - tol || metOurAsk) {
-      return {
-        decision: "accept",
-        price: offer,
-        reply: `€${offer} works — deal. I'll send a secure Stripe payment link now. Pay today and it's yours.`,
-        reason: metOurAsk
-          ? `Offer €${offer} meets our standing ask €${standingAsk} (±€${tol}) → accept (no haggling over a few euros).`
-          : `Offer €${offer} ≥ auto-accept €${p.autoAcceptAtOrAbove} (±€${tol}) → accept.`,
-        dealAgreed: true,
-        agreedPrice: offer,
-      };
-    }
-
-    // --- Counter: concede HALF the gap from our standing ask toward the buyer,
-    // clamped so we never cave below the policy counter-down and — crucially —
-    // never raise the ask above where it already stands. The ask therefore
-    // ratchets DOWN toward the buyer round after round and the deal converges. ---
-    const newAsk = niceRound(
-      Math.min(standingAsk, Math.max(p.autoCounterDownTo, (standingAsk + offer) / 2))
-    );
-    // If that concession lands within a few euros of the buyer, just close it.
-    if (offer >= newAsk - tol) {
-      return {
-        decision: "accept",
-        price: offer,
-        reply: `€${offer} — done. I'll send a secure Stripe payment link now; pay today and it's yours.`,
-        reason: `Counter €${newAsk} within €${tol} of offer €${offer} → accept rather than quibble.`,
-        dealAgreed: true,
-        agreedPrice: offer,
-      };
-    }
+    // Fallback reply if no handler matched (should not be reached)
     return {
-      decision: "counter",
-      price: newAsk,
-      reply: firm
-        ? `€${newAsk}, paid today via Stripe. That's my best — fair price and I've got other buyers watching.`
-        : `€${offer}'s a little under it. I can do €${newAsk} if you pay today via Stripe. Deal?`,
-      reason: `Offer €${offer} → counter €${newAsk} (concede half the gap from standing ask €${standingAsk} toward the buyer; never below counter-down €${p.autoCounterDownTo}; never raise)${firm ? `; firm, round ${buyerOffers}` : ""}.`,
+      decision: "answer",
+      reply: `Happy to answer anything. It's €${ctx.policy.targetPrice}.`,
+      reason: "Fallback answer",
       dealAgreed: false,
     };
   }
