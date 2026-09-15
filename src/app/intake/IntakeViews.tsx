@@ -244,6 +244,18 @@ export function QuestionsPhaseView({
   busy,
   onSubmitAnswers,
 }: QuestionsPhaseViewProps) {
+  const handleCustomAnswerChange = (questionId: string, value: string) => {
+    setAnswers((prev) => {
+      const next = { ...prev };
+      if (value.trim()) {
+        next[questionId] = value;
+      } else {
+        delete next[questionId];
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="panel space-y-5 p-6">
       <div className="flex items-center gap-2">
@@ -277,15 +289,7 @@ export function QuestionsPhaseView({
             </div>
             <input
               value={isCustom ? current : ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                setAnswers((a) => {
-                  const next = { ...a };
-                  if (v.trim()) next[q.id] = v;
-                  else delete next[q.id];
-                  return next;
-                });
-              }}
+              onChange={(e) => handleCustomAnswerChange(q.id, e.target.value)}
               placeholder="…or type your own answer"
               className={`mt-2 w-full rounded-sm border bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-cash ${
                 isCustom ? "border-cash" : "border-edge"
