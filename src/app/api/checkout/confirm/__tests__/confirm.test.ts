@@ -12,6 +12,8 @@ describe("GET /api/checkout/confirm", () => {
     jest.resetModules();
     process.env = { ...originalEnv };
     delete process.env.STRIPE_SECRET_KEY;
+    delete process.env.DEMO_MODE;
+    (process.env as Record<string, string | undefined>).NODE_ENV = "test";
     await resetDemo();
     await ensureSeeded();
   });
@@ -45,6 +47,31 @@ describe("GET /api/checkout/confirm", () => {
   });
 
   describe("Simulated Checkout Flow (STRIPE_SECRET_KEY not set)", () => {
+    it("returns 403 Forbidden in production mode when DEMO_MODE is not set", async () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      delete process.env.DEMO_MODE;
+
+      const itemId = "demo_pokemon";
+      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_${itemId}`);
+      const res = await GET(req);
+
+      expect(res.status).toBe(403);
+      const body = await res.json();
+      expect(body).toEqual({ error: "Simulated payments are disabled in production mode" });
+    });
+
+    it("allows simulated payment in production mode when DEMO_MODE is 'true'", async () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.DEMO_MODE = "true";
+
+      const itemId = "demo_pokemon";
+      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_${itemId}`);
+      const res = await GET(req);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe(`http://localhost:3000/market/${itemId}?paid=1`);
+    });
+
     it("returns 400 Bad Request if simulated session ID does not match item ID", async () => {
       const req = new NextRequest("http://localhost:3000/api/checkout/confirm?item=demo_pokemon&session=invalid_session_id");
       const res = await GET(req);
@@ -74,7 +101,7 @@ describe("GET /api/checkout/confirm", () => {
       process.env.STRIPE_SECRET_KEY = "sk_test_mock_key";
     });
 
-    it("returns 400 Bad Request when Stripe SDK fails to retrieve session (throws error)", async () => {
+    it("returns 400 Bad Request when Stripe SDK fails to retrieve session (throws error) and does not fall back to simulated flow", async () => {
       const mockRetrieve = jest.fn().mockRejectedValue(new Error("Stripe API Connection Error"));
       (Stripe as unknown as jest.Mock).mockImplementation(() => ({
         checkout: {
@@ -84,10 +111,12 @@ describe("GET /api/checkout/confirm", () => {
         },
       }));
 
-      const req = new NextRequest("http://localhost:3000/api/checkout/confirm?item=demo_pokemon&session=cs_test_error");
+      const itemId = "demo_pokemon";
+      // Even if session ID follows sim_<itemId> pattern, Stripe failure returns 400
+      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_${itemId}`);
       const res = await GET(req);
 
-      expect(mockRetrieve).toHaveBeenCalledWith("cs_test_error");
+      expect(mockRetrieve).toHaveBeenCalledWith(`sim_${itemId}`);
       expect(res.status).toBe(400);
       const body = await res.json();
       expect(body).toEqual({ error: "Invalid Stripe session" });
