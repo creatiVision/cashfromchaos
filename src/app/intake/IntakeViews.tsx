@@ -69,13 +69,13 @@ export interface SampleItem {
 }
 
 export interface DemoItemPickerProps {
-  samples: SampleItem[];
+  samples?: SampleItem[];
   currentImg: string;
   onSelectSample: (sample: SampleItem) => void;
 }
 
 export function DemoItemPicker({
-  samples,
+  samples = SAMPLE_ITEMS,
   currentImg,
   onSelectSample,
 }: DemoItemPickerProps) {
@@ -139,6 +139,13 @@ export function ReachSelector({ reach, onChange }: ReachSelectorProps) {
   );
 }
 
+export const SAMPLE_ITEMS: SampleItem[] = [
+  { clue: "I want to sell these Pokémon cards", img: "/img/pokemon.jpg" },
+  { clue: "I want to sell this guitar pedal", img: "/img/pedal.jpg" },
+  { clue: "I want to sell this chair", img: "/img/furniture.jpg" },
+  { clue: "I want to sell this kids stroller", img: "/img/stroller.jpg" },
+];
+
 export interface IntakePhaseViewProps {
   clue: string;
   setClue: (clue: string) => void;
@@ -150,7 +157,7 @@ export interface IntakePhaseViewProps {
   shotTaken: boolean;
   busy: boolean;
   cameraRef: React.RefObject<HTMLInputElement>;
-  samples: SampleItem[];
+  samples?: SampleItem[];
   onCapture: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSelectSample: (sample: SampleItem) => void;
   onAnalyze: () => void;
@@ -167,7 +174,7 @@ export function IntakePhaseView({
   shotTaken,
   busy,
   cameraRef,
-  samples,
+  samples = SAMPLE_ITEMS,
   onCapture,
   onSelectSample,
   onAnalyze,

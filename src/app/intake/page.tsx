@@ -12,13 +12,6 @@ import {
   type SampleItem,
 } from "./IntakeViews";
 
-const SAMPLE: SampleItem[] = [
-  { clue: "I want to sell these Pokémon cards", img: "/img/pokemon.jpg" },
-  { clue: "I want to sell this guitar pedal", img: "/img/pedal.jpg" },
-  { clue: "I want to sell this chair", img: "/img/furniture.jpg" },
-  { clue: "I want to sell this kids stroller", img: "/img/stroller.jpg" },
-];
-
 type Phase = "intake" | "questions" | "done";
 
 export default function IntakePage() {
@@ -103,7 +96,6 @@ export default function IntakePage() {
           shotTaken={shotTaken}
           busy={busy}
           cameraRef={cameraRef}
-          samples={SAMPLE}
           onCapture={onCapture}
           onSelectSample={onSelectSample}
           onAnalyze={() => analyze()}
