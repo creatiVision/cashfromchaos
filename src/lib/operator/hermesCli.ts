@@ -27,9 +27,6 @@ export function getValidatedHermesBin(overrideBin?: string): string {
   if (!bin || typeof bin !== "string" || bin.trim() === "") {
     throw new Error("HERMES_BIN must be a non-empty string");
   }
-  if (bin.includes("\0")) {
-    throw new Error("Invalid HERMES_BIN: contains null byte");
-  }
   if (bin.includes("..")) {
     throw new Error(`Invalid HERMES_BIN: path traversal ("..") is not allowed: ${bin}`);
   }
