@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 // ============================================================================
 // In-memory store + orchestration. Single source of truth for the demo.
 // Persisted on globalThis so it survives Next.js dev hot-reloads and is shared
@@ -30,10 +31,8 @@ function store(): Store {
   return g.__cfc_store;
 }
 
-let counter = 0;
 export function newId(prefix = "item"): string {
-  counter += 1;
-  return `${prefix}_${Date.now().toString(36)}_${counter}`;
+  return `${prefix}_${randomUUID()}`;
 }
 
 export function trace(
