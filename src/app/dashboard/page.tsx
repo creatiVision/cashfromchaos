@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ensureSeeded, listItems } from "@/lib/store";
 import { getOperator } from "@/lib/operator";
 import { eur } from "@/lib/money";
-import { netPayout } from "@/lib/payments";
+import { calculateDashboardStats } from "@/lib/dashboard";
 import { StatusBadge, ConfidenceBadge } from "@/components/ui";
 import { ResetButton } from "@/components/ResetButton";
 
@@ -11,20 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   await ensureSeeded();
   const items = listItems();
-  const { live, earned, pipeline } = items.reduce(
-    (acc, item) => {
-      if (item.status !== "payout-released") {
-        acc.live += 1;
-      }
-      if (item.payment.status === "released") {
-        acc.earned += netPayout(item);
-      } else {
-        acc.pipeline += item.payment.amount || item.policy.targetPrice;
-      }
-      return acc;
-    },
-    { live: 0, earned: 0, pipeline: 0 }
-  );
+  const { live, earned, pipeline } = calculateDashboardStats(items);
 
   return (
     <div className="space-y-6">

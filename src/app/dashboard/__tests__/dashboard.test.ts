@@ -1,22 +1,5 @@
-import { netPayout } from "@/lib/payments";
+import { calculateDashboardStats } from "@/lib/dashboard";
 import { Item } from "@/lib/types";
-
-function calculateDashboardStats(items: Item[]) {
-  return items.reduce(
-    (acc, item) => {
-      if (item.status !== "payout-released") {
-        acc.live += 1;
-      }
-      if (item.payment.status === "released") {
-        acc.earned += netPayout(item);
-      } else {
-        acc.pipeline += item.payment.amount || item.policy.targetPrice;
-      }
-      return acc;
-    },
-    { live: 0, earned: 0, pipeline: 0 }
-  );
-}
 
 describe("Dashboard calculation logic", () => {
   it("correctly computes live, earned, and pipeline in a single pass", () => {
