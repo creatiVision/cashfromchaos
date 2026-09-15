@@ -44,7 +44,7 @@ describe('getValidatedHermesBin', () => {
   });
 
   it('rejects null bytes', () => {
-    expect(() => getValidatedHermesBin('hermes\0')).toThrow('contains null byte');
+    expect(() => getValidatedHermesBin('hermes\0')).toThrow('contains unsafe characters');
   });
 
   it('rejects unsafe characters and command injection attempts', () => {
