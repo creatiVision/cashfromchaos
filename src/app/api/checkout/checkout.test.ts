@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSafeOrigin } from "@/lib/origin";
+import { POST } from "./route";
+import { getItem, resetDemo, ensureSeeded } from "@/lib/store";
 
 describe("Host Header Injection Prevention (getSafeOrigin)", () => {
   const originalEnv = process.env;
@@ -96,5 +98,101 @@ describe("Host Header Injection Prevention (getSafeOrigin)", () => {
 
     const origin = getSafeOrigin(req);
     expect(origin).toBe("https://app.example.com");
+  });
+});
+
+describe("POST /api/checkout", () => {
+  const originalEnv = process.env;
+
+  beforeEach(async () => {
+    jest.resetModules();
+    process.env = { ...originalEnv };
+    delete process.env.CFC_API_TOKEN;
+    delete process.env.STRIPE_SECRET_KEY;
+    await resetDemo();
+    await ensureSeeded();
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it("returns 401 Unauthorized if API auth token is configured and missing/invalid", async () => {
+    process.env.CFC_API_TOKEN = "secret_api_token";
+
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon" }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toContain("Missing or invalid API token");
+  });
+
+  it("returns 404 Not Found if item does not exist", async () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "non_existent_item" }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Item not found" });
+  });
+
+  it("returns 400 Bad Request if item has no agreed price (amount <= 0)", async () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon" }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: "No agreed price yet" });
+  });
+
+  it("creates checkout, updates item payment status, and returns checkout url for items with agreed price", async () => {
+    const item = getItem("demo_pokemon");
+    expect(item).toBeDefined();
+    if (item) {
+      item.payment.amount = 45;
+    }
+
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon" }),
+      headers: {
+        "content-type": "application/json",
+        host: "localhost:3000",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({
+      url: "http://localhost:3000/api/checkout/confirm?item=demo_pokemon&session=sim_demo_pokemon&sim=1",
+      provider: "simulated",
+    });
+
+    const updatedItem = getItem("demo_pokemon");
+    expect(updatedItem?.payment.status).toBe("pending");
+    expect(updatedItem?.payment.provider).toBe("simulated");
+    expect(updatedItem?.payment.sessionId).toBe("sim_demo_pokemon");
+    expect(updatedItem?.payment.checkoutUrl).toBe(body.url);
+    expect(updatedItem?.trace.some((t) => t.label.includes("Checkout created"))).toBe(true);
   });
 });
