@@ -6,11 +6,40 @@ import { checkApiAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+const MAX_ITEM_ID_LENGTH = 100;
+const MAX_ACTION_LENGTH = 50;
+
 // Advance fulfillment: "ship" → in-transit, "deliver" → delivered + payout released.
 export async function POST(req: NextRequest) {
   const denied = checkApiAuth(req);
   if (denied) return denied;
-  const { itemId, action } = await req.json();
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { itemId, action } = body ?? {};
+  if (!itemId || !action) {
+    return NextResponse.json({ error: "Missing itemId or action" }, { status: 400 });
+  }
+
+  if (typeof itemId !== "string" || itemId.length > MAX_ITEM_ID_LENGTH) {
+    return NextResponse.json(
+      { error: `itemId must be a string of at most ${MAX_ITEM_ID_LENGTH} characters` },
+      { status: 400 }
+    );
+  }
+
+  if (typeof action !== "string" || action.length > MAX_ACTION_LENGTH) {
+    return NextResponse.json(
+      { error: `action must be a string of at most ${MAX_ACTION_LENGTH} characters` },
+      { status: 400 }
+    );
+  }
+
   await ensureSeeded();
   const item = getItem(itemId);
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
