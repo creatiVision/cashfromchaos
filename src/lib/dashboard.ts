@@ -8,18 +8,21 @@ export interface DashboardStats {
 }
 
 export function calculateDashboardStats(items: Item[]): DashboardStats {
-  return items.reduce(
-    (acc, item) => {
-      if (item.status !== "payout-released") {
-        acc.live += 1;
-      }
-      if (item.payment.status === "released") {
-        acc.earned += netPayout(item);
-      } else {
-        acc.pipeline += item.payment.amount || item.policy.targetPrice;
-      }
-      return acc;
-    },
-    { live: 0, earned: 0, pipeline: 0 }
-  );
+  let live = 0;
+  let earned = 0;
+  let pipeline = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.status !== "payout-released") {
+      live += 1;
+    }
+    if (item.payment.status === "released") {
+      earned += netPayout(item);
+    } else {
+      pipeline += item.payment.amount || item.policy.targetPrice;
+    }
+  }
+
+  return { live, earned, pipeline };
 }
