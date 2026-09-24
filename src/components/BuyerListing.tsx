@@ -165,96 +165,151 @@ function BuyerNegotiationPanel({
   return (
     <aside className="order-2 lg:order-3 lg:col-start-2 lg:row-start-1 lg:sticky lg:top-20 lg:self-start">
       <div className="panel flex h-[560px] flex-col">
-        <div className="border-b border-edge p-4">
-          <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-cash text-ink font-black text-xs">
-              H
-            </span>
-            <div>
-              <div className="text-sm font-semibold">Hermes (seller’s agent)</div>
-              <div className="text-[11px] text-cash">
-                ● online · negotiates under policy
-              </div>
-            </div>
-          </div>
-        </div>
+        <AgentHeader />
 
-        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
-          {chat.length === 0 && (
-            <p className="text-center text-xs text-muted">
-              Ask a question or make an offer. Try “Would you take €50?”
-            </p>
-          )}
-          {chat.map((l, i) => (
-            <div
-              key={i}
-              className={`max-w-[88%] rounded-2xl p-3 text-sm ${
-                l.who === "buyer"
-                  ? "ml-auto rounded-tr-sm border border-edge bg-panel2"
-                  : "rounded-tl-sm border border-cash/30 bg-cash/5"
-              }`}
-            >
-              {l.who === "hermes" && (
-                <div className="mb-0.5 text-[11px] text-cash">
-                  Hermes{l.decision ? ` · ${l.decision}` : ""}
-                </div>
-              )}
-              {l.text}
-            </div>
-          ))}
-          {busy && <div className="text-xs text-muted">Hermes is typing…</div>}
-        </div>
+        <ChatHistory chat={chat} busy={busy} scrollRef={scrollRef} />
 
         {isPaid ? (
-          <div className="border-t border-edge p-4 text-center">
-            <div className="text-sm font-semibold text-cash">
-              ✓ Paid · {eur(item.payment.amount)} held
-            </div>
-            <p className="mt-1 text-xs text-muted">
-              Funds released on delivery. Track it on the{" "}
-              <Link href={`/item/${item.id}`} className="text-cash">
-                operation page
-              </Link>
-              .
-            </p>
-          </div>
+          <PaidStatusPanel item={item} />
         ) : dealPrice ? (
-          <div className="space-y-2 border-t border-edge p-4">
-            <div className="text-center text-sm">
-              Deal agreed at <span className="font-mono text-cash">{eur(dealPrice)}</span>
-            </div>
-            <button onClick={onPay} disabled={busy} className="btn-cash w-full">
-              Pay {eur(dealPrice)} with Stripe →
-            </button>
-          </div>
+          <DealAgreedPanel dealPrice={dealPrice} busy={busy} onPay={onPay} />
         ) : (
-          <div className="border-t border-edge p-4">
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {["Would you take €50?", "Does it work?", "Can you ship it?"].map((q) => (
-                <button
-                  key={q}
-                  onClick={() => onSend(q)}
-                  className="chip cursor-pointer hover:border-cash/50"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onSend()}
-                placeholder="Make an offer or ask…"
-                className="flex-1 rounded-xl border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-cash/60"
-              />
-              <button onClick={() => onSend()} disabled={busy} className="btn-cash">
-                Send
-              </button>
-            </div>
-          </div>
+          <ChatInputPanel text={text} setText={setText} busy={busy} onSend={onSend} />
         )}
       </div>
     </aside>
+  );
+}
+
+function AgentHeader() {
+  return (
+    <div className="border-b border-edge p-4">
+      <div className="flex items-center gap-2">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-cash text-ink font-black text-xs">
+          H
+        </span>
+        <div>
+          <div className="text-sm font-semibold">Hermes (seller’s agent)</div>
+          <div className="text-[11px] text-cash">
+            ● online · negotiates under policy
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ChatHistoryProps {
+  chat: ChatLine[];
+  busy: boolean;
+  scrollRef: React.RefObject<HTMLDivElement>;
+}
+
+function ChatHistory({ chat, busy, scrollRef }: ChatHistoryProps) {
+  return (
+    <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+      {chat.length === 0 && (
+        <p className="text-center text-xs text-muted">
+          Ask a question or make an offer. Try “Would you take €50?”
+        </p>
+      )}
+      {chat.map((l, i) => (
+        <div
+          key={i}
+          className={`max-w-[88%] rounded-2xl p-3 text-sm ${
+            l.who === "buyer"
+              ? "ml-auto rounded-tr-sm border border-edge bg-panel2"
+              : "rounded-tl-sm border border-cash/30 bg-cash/5"
+          }`}
+        >
+          {l.who === "hermes" && (
+            <div className="mb-0.5 text-[11px] text-cash">
+              Hermes{l.decision ? ` · ${l.decision}` : ""}
+            </div>
+          )}
+          {l.text}
+        </div>
+      ))}
+      {busy && <div className="text-xs text-muted">Hermes is typing…</div>}
+    </div>
+  );
+}
+
+function PaidStatusPanel({ item }: { item: Item }) {
+  return (
+    <div className="border-t border-edge p-4 text-center">
+      <div className="text-sm font-semibold text-cash">
+        ✓ Paid · {eur(item.payment.amount)} held
+      </div>
+      <p className="mt-1 text-xs text-muted">
+        Funds released on delivery. Track it on the{" "}
+        <Link href={`/item/${item.id}`} className="text-cash">
+          operation page
+        </Link>
+        .
+      </p>
+    </div>
+  );
+}
+
+interface DealAgreedPanelProps {
+  dealPrice: number;
+  busy: boolean;
+  onPay: () => void;
+}
+
+function DealAgreedPanel({ dealPrice, busy, onPay }: DealAgreedPanelProps) {
+  return (
+    <div className="space-y-2 border-t border-edge p-4">
+      <div className="text-center text-sm">
+        Deal agreed at <span className="font-mono text-cash">{eur(dealPrice)}</span>
+      </div>
+      <button onClick={onPay} disabled={busy} className="btn-cash w-full">
+        Pay {eur(dealPrice)} with Stripe →
+      </button>
+    </div>
+  );
+}
+
+interface ChatInputPanelProps {
+  text: string;
+  setText: (text: string) => void;
+  busy: boolean;
+  onSend: (message?: string) => void;
+}
+
+const SUGGESTED_QUESTIONS = [
+  "Would you take €50?",
+  "Does it work?",
+  "Can you ship it?",
+];
+
+function ChatInputPanel({ text, setText, busy, onSend }: ChatInputPanelProps) {
+  return (
+    <div className="border-t border-edge p-4">
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {SUGGESTED_QUESTIONS.map((q) => (
+          <button
+            key={q}
+            onClick={() => onSend(q)}
+            className="chip cursor-pointer hover:border-cash/50"
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onSend()}
+          placeholder="Make an offer or ask…"
+          className="flex-1 rounded-xl border border-edge bg-panel2 px-3 py-2 text-sm outline-none focus:border-cash/60"
+        />
+        <button onClick={() => onSend()} disabled={busy} className="btn-cash">
+          Send
+        </button>
+      </div>
+    </div>
   );
 }
