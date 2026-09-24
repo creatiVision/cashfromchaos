@@ -7,8 +7,7 @@ describe("POST /api/fulfillment", () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...originalEnv };
-    delete process.env.CFC_API_TOKEN;
+    process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
     await resetDemo();
     await ensureSeeded();
   });
@@ -18,6 +17,7 @@ describe("POST /api/fulfillment", () => {
   });
 
   it("denies access when CFC_API_TOKEN is set and request token is missing or invalid", async () => {
+    delete process.env.CFC_DISABLE_API_AUTH;
     process.env.CFC_API_TOKEN = "secret-token";
     const req = new NextRequest("http://localhost:3000/api/fulfillment", {
       method: "POST",
@@ -32,6 +32,7 @@ describe("POST /api/fulfillment", () => {
   });
 
   it("allows access when CFC_API_TOKEN is set and correct authorization header is provided", async () => {
+    delete process.env.CFC_DISABLE_API_AUTH;
     process.env.CFC_API_TOKEN = "secret-token";
     const req = new NextRequest("http://localhost:3000/api/fulfillment", {
       method: "POST",
@@ -172,5 +173,94 @@ describe("POST /api/fulfillment", () => {
         )
       ).toBe(true);
     });
+  });
+});
+
+describe("POST /api/fulfillment input validation", () => {
+  const originalEnv = process.env;
+
+  beforeEach(async () => {
+    jest.resetModules();
+    process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
+    await resetDemo();
+    await ensureSeeded();
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it("returns 400 when body is invalid JSON", async () => {
+    const req = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: "{ invalid json",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid JSON body");
+  });
+
+  it("returns 400 when missing itemId or action", async () => {
+    const req = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Missing itemId or action");
+  });
+
+  it("returns 400 when itemId is not a string or exceeds length limit", async () => {
+    const reqObj = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({ itemId: { id: "demo_pokemon" }, action: "ship" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const resObj = await POST(reqObj);
+    expect(resObj.status).toBe(400);
+    const bodyObj = await resObj.json();
+    expect(bodyObj.error).toContain("itemId must be a string");
+
+    const reqLong = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "a".repeat(101), action: "ship" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const resLong = await POST(reqLong);
+    expect(resLong.status).toBe(400);
+    const bodyLong = await resLong.json();
+    expect(bodyLong.error).toContain("itemId must be a string");
+  });
+
+  it("returns 400 when action is not a string or exceeds length limit", async () => {
+    const reqObj = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon", action: ["ship"] }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const resObj = await POST(reqObj);
+    expect(resObj.status).toBe(400);
+    const bodyObj = await resObj.json();
+    expect(bodyObj.error).toContain("action must be a string");
+
+    const reqLong = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon", action: "a".repeat(51) }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const resLong = await POST(reqLong);
+    expect(resLong.status).toBe(400);
+    const bodyLong = await resLong.json();
+    expect(bodyLong.error).toContain("action must be a string");
   });
 });
