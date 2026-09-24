@@ -1,5 +1,7 @@
 "use client";
 
+import { isSafeRedirectUrl } from "@/lib/redirect";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { AgentReply, Item } from "@/lib/types";
@@ -61,7 +63,11 @@ export function BuyerListing({ initial, paid }: { initial: Item; paid: boolean }
     });
     const data = await res.json();
     setBusy(false);
-    if (data.url) window.location.href = data.url;
+    if (data.url && isSafeRedirectUrl(data.url)) {
+      window.location.href = data.url;
+    } else if (data.url) {
+      console.error("Untrusted or unsafe checkout redirect URL:", data.url);
+    }
   }
 
   const isPaid = paid || item.payment.status === "held" || item.payment.status === "released";
