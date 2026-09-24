@@ -15,12 +15,39 @@
 // ============================================================================
 
 import { execFile } from "node:child_process";
+import path from "node:path";
 
 const HERMES_TIMEOUT_MS = Number(process.env.HERMES_TIMEOUT_MS ?? 60_000);
 
+const FORBIDDEN_BINS = new Set([
+  "sh",
+  "bash",
+  "zsh",
+  "ksh",
+  "csh",
+  "tcsh",
+  "dash",
+  "cmd",
+  "cmd.exe",
+  "powershell",
+  "powershell.exe",
+  "pwsh",
+  "pwsh.exe",
+  "python",
+  "python3",
+  "node",
+  "npm",
+  "npx",
+  "env",
+  "perl",
+  "ruby",
+  "php",
+]);
+
 /**
  * Validates and returns the binary command or path for Hermes.
- * Restricts binary name to safe characters and prevents option injection / path traversal.
+ * Restricts binary name to safe characters and prevents option injection, path traversal,
+ * and execution of forbidden shell interpreters.
  */
 export function getValidatedHermesBin(overrideBin?: string): string {
   const bin = overrideBin ?? process.env.HERMES_BIN ?? "hackathon";
@@ -37,7 +64,29 @@ export function getValidatedHermesBin(overrideBin?: string): string {
   if (!SAFE_BIN_REGEX.test(bin)) {
     throw new Error(`Invalid HERMES_BIN: contains unsafe characters: ${bin}`);
   }
+  const baseName = path.basename(bin).toLowerCase();
+  if (FORBIDDEN_BINS.has(baseName)) {
+    throw new Error(`Invalid HERMES_BIN: execution of shell/interpreter '${baseName}' is forbidden: ${bin}`);
+  }
   return bin;
+}
+
+/**
+ * Validates optional model parameter passed via environment or configuration.
+ * Ensures model string does not contain flag injection or shell characters.
+ */
+export function getValidatedHermesModel(model?: string): string | undefined {
+  if (!model) return undefined;
+  const trimmed = model.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("-")) {
+    throw new Error(`Invalid HERMES_MODEL: model name cannot start with a hyphen: ${model}`);
+  }
+  const SAFE_MODEL_REGEX = /^[a-zA-Z0-9_.\-/:@]+$/;
+  if (!SAFE_MODEL_REGEX.test(trimmed)) {
+    throw new Error(`Invalid HERMES_MODEL: contains unsafe characters: ${model}`);
+  }
+  return trimmed;
 }
 
 /**
@@ -49,14 +98,15 @@ export function runHermes(prompt: string): Promise<string> {
   const args = ["-z", prompt];
   // Optional model override; otherwise Hermes uses its configured default
   // (e.g. the user's OAuth provider), which is the most reliable path.
-  const model = process.env.HERMES_MODEL;
+  const rawModel = process.env.HERMES_MODEL;
+  const model = getValidatedHermesModel(rawModel);
   if (model) args.push("-m", model);
 
   return new Promise((resolve, reject) => {
     execFile(
       hermesBin,
       args,
-      { timeout: HERMES_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, encoding: "utf8" },
+      { timeout: HERMES_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, encoding: "utf8", shell: false },
       (err, stdout, stderr) => {
         if (err) {
           reject(new Error(`hermes CLI failed: ${err.message} ${stderr ?? ""}`.trim()));
@@ -75,7 +125,7 @@ export function runHermes(prompt: string): Promise<string> {
 
 /**
  * Run a prompt that must return JSON, and parse it. Tolerates models that wrap
- * the object in prose or \`\`\`json fences by extracting the first balanced {...}.
+ * the object in prose or ```json fences by extracting the first balanced {...}.
  */
 export async function runHermesJson<T>(prompt: string): Promise<T> {
   const raw = await runHermes(

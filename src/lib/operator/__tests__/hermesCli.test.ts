@@ -1,4 +1,4 @@
-import { extractJson, runHermesJson, getValidatedHermesBin, runHermes } from '../hermesCli';
+import { extractJson, runHermesJson, getValidatedHermesBin, getValidatedHermesModel, runHermes } from '../hermesCli';
 import * as childProcess from 'node:child_process';
 
 jest.mock('node:child_process', () => ({
@@ -43,6 +43,14 @@ describe('getValidatedHermesBin', () => {
     expect(() => getValidatedHermesBin('/usr/bin/../bin/hermes')).toThrow('path traversal ("..") is not allowed');
   });
 
+  it('rejects forbidden shell and interpreter binaries', () => {
+    expect(() => getValidatedHermesBin('bash')).toThrow("execution of shell/interpreter 'bash' is forbidden");
+    expect(() => getValidatedHermesBin('/bin/sh')).toThrow("execution of shell/interpreter 'sh' is forbidden");
+    expect(() => getValidatedHermesBin('python3')).toThrow("execution of shell/interpreter 'python3' is forbidden");
+    expect(() => getValidatedHermesBin('node')).toThrow("execution of shell/interpreter 'node' is forbidden");
+    expect(() => getValidatedHermesBin('powershell.exe')).toThrow("execution of shell/interpreter 'powershell.exe' is forbidden");
+  });
+
   it('rejects null bytes', () => {
     expect(() => getValidatedHermesBin('hermes\0')).toThrow('contains unsafe characters');
   });
@@ -54,6 +62,30 @@ describe('getValidatedHermesBin', () => {
     expect(() => getValidatedHermesBin('hermes $VAR')).toThrow('contains unsafe characters');
     expect(() => getValidatedHermesBin('hermes`id`')).toThrow('contains unsafe characters');
     expect(() => getValidatedHermesBin('hermes command')).toThrow('contains unsafe characters');
+  });
+});
+
+describe('getValidatedHermesModel', () => {
+  it('returns undefined when model is empty or undefined', () => {
+    expect(getValidatedHermesModel(undefined)).toBeUndefined();
+    expect(getValidatedHermesModel('')).toBeUndefined();
+    expect(getValidatedHermesModel('   ')).toBeUndefined();
+  });
+
+  it('accepts valid model names', () => {
+    expect(getValidatedHermesModel('gpt-4o')).toBe('gpt-4o');
+    expect(getValidatedHermesModel('nousresearch/hermes-3-llama-3.1-405b:free')).toBe('nousresearch/hermes-3-llama-3.1-405b:free');
+    expect(getValidatedHermesModel('user@provider/model-v1.0')).toBe('user@provider/model-v1.0');
+  });
+
+  it('rejects model names starting with a hyphen', () => {
+    expect(() => getValidatedHermesModel('-o')).toThrow('model name cannot start with a hyphen');
+    expect(() => getValidatedHermesModel('--version')).toThrow('model name cannot start with a hyphen');
+  });
+
+  it('rejects unsafe characters in model names', () => {
+    expect(() => getValidatedHermesModel('model; id')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('model | grep x')).toThrow('contains unsafe characters');
   });
 });
 
@@ -125,7 +157,12 @@ describe('runHermesJson', () => {
         '-z',
         'Analyze item\n\nRespond with ONLY a single JSON object. No prose, no markdown fences, no tool use.',
       ],
-      expect.any(Object),
+      expect.objectContaining({
+        shell: false,
+        timeout: expect.any(Number),
+        maxBuffer: expect.any(Number),
+        encoding: 'utf8',
+      }),
       expect.any(Function)
     );
   });
@@ -147,6 +184,16 @@ describe('runHermesJson', () => {
       expect(() => runHermes('hello')).toThrow('contains unsafe characters');
     } finally {
       process.env.HERMES_BIN = originalEnv;
+    }
+  });
+
+  it('rejects when HERMES_MODEL environment variable is invalid', () => {
+    const originalModel = process.env.HERMES_MODEL;
+    process.env.HERMES_MODEL = '-oUnsafeFile';
+    try {
+      expect(() => runHermes('hello')).toThrow('model name cannot start with a hyphen');
+    } finally {
+      process.env.HERMES_MODEL = originalModel;
     }
   });
 });
