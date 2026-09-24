@@ -221,18 +221,22 @@ async function seedDemo(): Promise<void> {
         skipSave: true,
       });
 
-      for (const m of seed.seedMessages ?? []) {
-        await negotiate(
-          item,
-          {
-            itemId: item.id,
-            buyerName: m.buyerName,
-            text: m.text,
-            offer: m.offer,
-            ts: Date.now() - (m.agoMs ?? 0),
-          },
-          seedBrain,
-          { skipSave: true }
+      if (seed.seedMessages?.length) {
+        await Promise.all(
+          seed.seedMessages.map((m) =>
+            negotiate(
+              item,
+              {
+                itemId: item.id,
+                buyerName: m.buyerName,
+                text: m.text,
+                offer: m.offer,
+                ts: Date.now() - (m.agoMs ?? 0),
+              },
+              seedBrain,
+              { skipSave: true }
+            )
+          )
         );
       }
       saveItem(item);
