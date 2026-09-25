@@ -4,6 +4,7 @@ import { ensureSeeded } from "@/lib/store";
 
 describe("POST /api/negotiate length validation", () => {
   beforeEach(async () => {
+    process.env.CFC_DISABLE_API_AUTH = "true";
     await ensureSeeded();
   });
 
