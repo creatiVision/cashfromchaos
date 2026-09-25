@@ -8,6 +8,7 @@ describe("/api/items endpoints", () => {
   beforeEach(async () => {
     jest.resetModules();
     process.env = { ...originalEnv };
+    delete process.env.CFC_DISABLE_API_AUTH;
     delete process.env.CFC_API_TOKEN;
     await resetDemo();
   });
@@ -36,6 +37,7 @@ describe("/api/items endpoints", () => {
   describe("POST /api/items", () => {
     describe("Authentication", () => {
       it("returns 401 Unauthorized when CFC_API_TOKEN is set and token is missing or invalid", async () => {
+        delete process.env.CFC_DISABLE_API_AUTH;
         process.env.CFC_API_TOKEN = "secret_token_123";
 
         // Missing Authorization header
@@ -61,6 +63,7 @@ describe("/api/items endpoints", () => {
       });
 
       it("succeeds when CFC_API_TOKEN is set and valid Bearer token is provided", async () => {
+        delete process.env.CFC_DISABLE_API_AUTH;
         process.env.CFC_API_TOKEN = "secret_token_123";
 
         const req = new NextRequest("http://localhost:3000/api/items", {
@@ -80,6 +83,10 @@ describe("/api/items endpoints", () => {
     });
 
     describe("Validation", () => {
+      beforeEach(() => {
+        process.env.CFC_DISABLE_API_AUTH = "true";
+      });
+
       it("returns 400 Bad Request if body is missing 'clue'", async () => {
         const req = new NextRequest("http://localhost:3000/api/items", {
           method: "POST",
@@ -106,6 +113,10 @@ describe("/api/items endpoints", () => {
     });
 
     describe("Item Creation", () => {
+      beforeEach(() => {
+        process.env.CFC_DISABLE_API_AUTH = "true";
+      });
+
       it("creates a new item with default photo when photos array is missing or empty", async () => {
         const req = new NextRequest("http://localhost:3000/api/items", {
           method: "POST",
@@ -152,6 +163,10 @@ describe("/api/items endpoints", () => {
     });
 
     describe("Item Overwriting", () => {
+      beforeEach(() => {
+        process.env.CFC_DISABLE_API_AUTH = "true";
+      });
+
       it("overwrites an existing item when valid 'id' is provided, preserving id and createdAt", async () => {
         await ensureSeeded();
         const existingItem = getItem("demo_pokemon");

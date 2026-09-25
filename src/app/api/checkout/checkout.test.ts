@@ -106,7 +106,7 @@ describe("POST /api/checkout", () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...originalEnv };
+    process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
     delete process.env.CFC_API_TOKEN;
     delete process.env.STRIPE_SECRET_KEY;
     await resetDemo();
@@ -118,6 +118,7 @@ describe("POST /api/checkout", () => {
   });
 
   it("returns 401 Unauthorized if API auth token is configured and missing/invalid", async () => {
+    delete process.env.CFC_DISABLE_API_AUTH;
     process.env.CFC_API_TOKEN = "secret_api_token";
 
     const req = new NextRequest("http://localhost:3000/api/checkout", {
@@ -132,6 +133,66 @@ describe("POST /api/checkout", () => {
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body.error).toContain("Missing or invalid API token");
+  });
+
+  it("returns 400 Bad Request if JSON body is invalid", async () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: "{ invalid json",
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Invalid JSON body" });
+  });
+
+  it("returns 400 Bad Request if itemId is missing", async () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Missing itemId" });
+  });
+
+  it("returns 400 Bad Request if itemId is not a string", async () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: 12345 }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("itemId must be a string");
+  });
+
+  it("returns 400 Bad Request if itemId exceeds max length", async () => {
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "a".repeat(101) }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("itemId must be a string of at most 100 characters");
   });
 
   it("returns 404 Not Found if item does not exist", async () => {
