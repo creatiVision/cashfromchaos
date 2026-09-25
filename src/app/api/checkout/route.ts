@@ -7,10 +7,31 @@ import { resolveTrustedOrigin } from "@/lib/origin";
 
 export const dynamic = "force-dynamic";
 
+const MAX_ITEM_ID_LENGTH = 100;
+
 export async function POST(req: NextRequest) {
   const denied = checkApiAuth(req);
   if (denied) return denied;
-  const { itemId } = await req.json();
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { itemId } = body ?? {};
+  if (!itemId) {
+    return NextResponse.json({ error: "Missing itemId" }, { status: 400 });
+  }
+
+  if (typeof itemId !== "string" || itemId.length > MAX_ITEM_ID_LENGTH) {
+    return NextResponse.json(
+      { error: `itemId must be a string of at most ${MAX_ITEM_ID_LENGTH} characters` },
+      { status: 400 }
+    );
+  }
+
   await ensureSeeded();
   const item = getItem(itemId);
   if (!item) return NextResponse.json({ error: "Item not found" }, { status: 404 });
