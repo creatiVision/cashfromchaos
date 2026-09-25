@@ -6,7 +6,6 @@ describe("POST /api/negotiate length validation", () => {
   const originalEnv = process.env;
 
   beforeEach(async () => {
-    jest.resetModules();
     process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
     await ensureSeeded();
   });
