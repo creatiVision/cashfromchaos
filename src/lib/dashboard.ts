@@ -1,4 +1,4 @@
-import { netPayout } from "@/lib/payments";
+import { round2 } from "@/lib/money";
 import { Item } from "@/lib/types";
 
 export interface DashboardStats {
@@ -14,11 +14,18 @@ export function calculateDashboardStats(items: Item[]): DashboardStats {
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
+
     if (item.status !== "payout-released") {
       live += 1;
     }
+
     if (item.payment.status === "released") {
-      earned += netPayout(item);
+      let itemNet = 0;
+      const ledger = item.ledger;
+      for (let j = 0; j < ledger.length; j++) {
+        itemNet += ledger[j].amount;
+      }
+      earned += round2(itemNet);
     } else {
       pipeline += item.payment.amount || item.policy.targetPrice;
     }

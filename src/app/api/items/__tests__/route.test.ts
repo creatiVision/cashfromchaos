@@ -7,8 +7,7 @@ describe("/api/items endpoints", () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...originalEnv };
-    delete process.env.CFC_DISABLE_API_AUTH;
+    process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
     delete process.env.CFC_API_TOKEN;
     await resetDemo();
   });

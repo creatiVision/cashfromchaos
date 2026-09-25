@@ -118,6 +118,9 @@ describe("isBaseUrl", () => {
 
   it("should return false when baseUrlEnv is an invalid URL string (triggering catch block)", () => {
     expect(isBaseUrl("example.com", "example.com", "http://[")).toBe(false);
+    expect(isBaseUrl("example.com", "example.com", "http://%80")).toBe(false);
+    expect(isBaseUrl("example.com", "example.com", "http://^invalid_host")).toBe(false);
+    expect(isBaseUrl("example.com", "example.com", "://invalid-url")).toBe(false);
   });
 });
 
@@ -160,9 +163,14 @@ describe("isAllowedHost", () => {
   it("should safely handle invalid URL entries containing :// (triggering catch block) without throwing", () => {
     // Single invalid entry
     expect(isAllowedHost("example.com", "example.com", "http://[")).toBe(false);
+    expect(isAllowedHost("example.com", "example.com", "http://%80")).toBe(false);
+    expect(isAllowedHost("example.com", "example.com", "http://^invalid_host")).toBe(false);
     // Invalid entry followed by valid entry
     expect(
       isAllowedHost("app.example.com", "app.example.com", "http://[, app.example.com")
+    ).toBe(true);
+    expect(
+      isAllowedHost("app.example.com", "app.example.com", "http://%80, https://app.example.com")
     ).toBe(true);
   });
 });

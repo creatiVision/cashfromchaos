@@ -1,4 +1,3 @@
-import React from "react";
 import { renderToString } from "react-dom/server";
 import { Timeline } from "../Timeline";
 import type { TransactionStatus } from "@/lib/types";
