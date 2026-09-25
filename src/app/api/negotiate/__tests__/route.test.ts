@@ -1,6 +1,6 @@
 import { POST } from "../route";
 import { NextRequest } from "next/server";
-import { ensureSeeded, getItem } from "@/lib/store";
+import { ensureSeeded } from "@/lib/store";
 
 describe("POST /api/negotiate length validation", () => {
   beforeEach(async () => {
