@@ -1,3 +1,4 @@
+import { FixtureBrain } from "../fixtureBrain";
 import { HermesBrain, LlmBrain } from "../llmBrain";
 import { runHermes, runHermesJson } from "../hermesCli";
 import type {
@@ -89,6 +90,19 @@ describe("HermesBrain (LlmBrain)", () => {
       const promptArg = mockedRunHermesJson.mock.calls[0][0];
       expect(promptArg).toContain("Extra notes: none.");
       expect(promptArg).toContain("Seller's answers to questions: none.");
+    });
+
+    it("handles non-array sellingPoints gracefully", async () => {
+      mockedRunHermesJson.mockResolvedValueOnce({
+        title: "Test Item",
+        description: "Test Description",
+        sellingPoints: "not-an-array" as any,
+      });
+
+      const analysis = await brain.analyzeItem(mockIntake);
+      expect(analysis.title).toBe("Test Item");
+      expect(analysis.description).toBe("Test Description");
+      expect(analysis.sellingPoints).toBeUndefined();
     });
 
     it("falls back to base title when Hermes returns empty title or whitespace", async () => {
@@ -240,6 +254,37 @@ describe("HermesBrain (LlmBrain)", () => {
     });
   });
 
+    it("returns empty array if super.draftListings returns empty drafts", async () => {
+      const intake: ItemIntake = { clue: "Fender Guitar", photos: [] };
+      const analysis = await brain.analyzeItem(intake);
+      analysis.description = "Some description";
+
+      jest.spyOn(FixtureBrain.prototype, "draftListings").mockResolvedValueOnce([]);
+
+      const plan: MarketplacePlan = {
+        primary: { channelId: "ebay-de-mock", name: "eBay DE Mock", fitScore: 0.9, reason: "Best market", feePct: 10, shippingFriendly: true },
+        alternates: [],
+        bundleRecommended: false,
+        strategy: ["Sell fast"],
+      };
+      const policy: CommercePolicy = {
+        currency: "EUR",
+        targetPrice: 100,
+        floorPrice: 80,
+        autoAcceptAtOrAbove: 95,
+        autoCounterDownTo: 85,
+        requireHumanBelow: 80,
+        maxFulfillmentSpend: 10,
+        allowedPaymentMethods: ["stripe"],
+        allowedChannels: ["ebay-de-mock"],
+        shippingAllowed: true,
+        pickupAllowed: true,
+        suspiciousBuyerEscalation: true,
+      };
+
+      const drafts = await brain.draftListings(analysis, plan, policy);
+      expect(drafts).toEqual([]);
+    });
   describe("handleBuyerMessage", () => {
     let mockItem: Item;
 
