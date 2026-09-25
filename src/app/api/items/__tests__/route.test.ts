@@ -7,7 +7,7 @@ describe("/api/items endpoints", () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...originalEnv };
+    process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
     delete process.env.CFC_API_TOKEN;
     await resetDemo();
   });
@@ -36,6 +36,7 @@ describe("/api/items endpoints", () => {
   describe("POST /api/items", () => {
     describe("Authentication", () => {
       it("returns 401 Unauthorized when CFC_API_TOKEN is set and token is missing or invalid", async () => {
+        delete process.env.CFC_DISABLE_API_AUTH;
         process.env.CFC_API_TOKEN = "secret_token_123";
 
         // Missing Authorization header
@@ -61,6 +62,7 @@ describe("/api/items endpoints", () => {
       });
 
       it("succeeds when CFC_API_TOKEN is set and valid Bearer token is provided", async () => {
+        delete process.env.CFC_DISABLE_API_AUTH;
         process.env.CFC_API_TOKEN = "secret_token_123";
 
         const req = new NextRequest("http://localhost:3000/api/items", {

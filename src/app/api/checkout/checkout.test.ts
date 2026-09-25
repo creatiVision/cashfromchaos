@@ -106,7 +106,7 @@ describe("POST /api/checkout", () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    process.env = { ...originalEnv };
+    process.env = { ...originalEnv, CFC_DISABLE_API_AUTH: "true" };
     delete process.env.CFC_API_TOKEN;
     delete process.env.STRIPE_SECRET_KEY;
     await resetDemo();
@@ -118,6 +118,7 @@ describe("POST /api/checkout", () => {
   });
 
   it("returns 401 Unauthorized if API auth token is configured and missing/invalid", async () => {
+    delete process.env.CFC_DISABLE_API_AUTH;
     process.env.CFC_API_TOKEN = "secret_api_token";
 
     const req = new NextRequest("http://localhost:3000/api/checkout", {
