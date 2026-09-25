@@ -118,7 +118,7 @@ describe("POST /api/checkout", () => {
   });
 
   it("returns 401 Unauthorized if API auth token is configured and missing/invalid", async () => {
-    process.env.CFC_DISABLE_API_AUTH = "false";
+    delete process.env.CFC_DISABLE_API_AUTH;
     process.env.CFC_API_TOKEN = "secret_api_token";
 
     const req = new NextRequest("http://localhost:3000/api/checkout", {
