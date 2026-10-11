@@ -1,4 +1,3 @@
-import React from "react";
 import { renderToString } from "react-dom/server";
 import { BuyerListing } from "../BuyerListing";
 import type { Item } from "@/lib/types";
