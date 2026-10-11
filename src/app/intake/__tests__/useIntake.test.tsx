@@ -1,6 +1,8 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { useIntake } from "../useIntake";
+import { useIntakeForm } from "../useIntakeForm";
+import { useItemAnalysis } from "../useItemAnalysis";
 
 describe("useIntake hook", () => {
   it("initializes with default state values and renders intake view correctly", () => {
@@ -46,5 +48,53 @@ describe("useIntake hook", () => {
       });
       // Verification of handler execution
     }
+  });
+});
+
+describe("useIntakeForm hook", () => {
+  it("initializes form state correctly", () => {
+    let formResult: ReturnType<typeof useIntakeForm> | undefined;
+
+    function TestComponent() {
+      const form = useIntakeForm();
+      formResult = form;
+      return <div>{form.clue}</div>;
+    }
+
+    renderToString(<TestComponent />);
+
+    expect(formResult).toBeDefined();
+    expect(formResult?.clue).toBe("");
+    expect(formResult?.img).toBe("/img/generic.jpg");
+    expect(formResult?.notes).toBe("");
+    expect(formResult?.reach).toBe("auto");
+    expect(formResult?.shotTaken).toBe(false);
+    expect(formResult?.cameraRef).toBeDefined();
+  });
+});
+
+describe("useItemAnalysis hook", () => {
+  it("initializes item analysis state correctly", () => {
+    let analysisResult: ReturnType<typeof useItemAnalysis> | undefined;
+
+    function TestComponent() {
+      const analysis = useItemAnalysis({
+        clue: "Test item",
+        img: "/img/generic.jpg",
+        notes: "Some notes",
+        reach: "auto",
+      });
+      analysisResult = analysis;
+      return <div data-phase={analysis.phase}>{analysis.phase}</div>;
+    }
+
+    renderToString(<TestComponent />);
+
+    expect(analysisResult).toBeDefined();
+    expect(analysisResult?.phase).toBe("intake");
+    expect(analysisResult?.busy).toBe(false);
+    expect(analysisResult?.item).toBeNull();
+    expect(analysisResult?.questions).toEqual([]);
+    expect(analysisResult?.answers).toEqual({});
   });
 });
