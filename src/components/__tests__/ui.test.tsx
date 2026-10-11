@@ -26,6 +26,15 @@ describe("UI Components (src/components/ui.tsx)", () => {
       expect(html).toContain(label);
       expect(html).toContain(toneClass);
       expect(html).toContain("chip");
+      expect(html).toContain("h-1.5 w-1.5 rounded-full bg-current");
+    });
+
+    it("handles unexpected or unmapped status gracefully", () => {
+      const unmappedStatus = "unknown-status" as TransactionStatus;
+      const html = renderToString(<StatusBadge status={unmappedStatus} />);
+
+      expect(html).toContain("chip");
+      expect(html).toContain("h-1.5 w-1.5 rounded-full bg-current");
     });
   });
 
