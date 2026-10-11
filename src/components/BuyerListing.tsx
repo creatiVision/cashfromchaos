@@ -169,13 +169,16 @@ function BuyerNegotiationPanel({
 
         <ChatHistory chat={chat} busy={busy} scrollRef={scrollRef} />
 
-        {isPaid ? (
-          <PaidStatusPanel item={item} />
-        ) : dealPrice ? (
-          <DealAgreedPanel dealPrice={dealPrice} busy={busy} onPay={onPay} />
-        ) : (
-          <ChatInputPanel text={text} setText={setText} busy={busy} onSend={onSend} />
-        )}
+        <NegotiationFooter
+          item={item}
+          busy={busy}
+          isPaid={isPaid}
+          dealPrice={dealPrice}
+          text={text}
+          setText={setText}
+          onSend={onSend}
+          onPay={onPay}
+        />
       </div>
     </aside>
   );
@@ -233,6 +236,36 @@ function ChatHistory({ chat, busy, scrollRef }: ChatHistoryProps) {
       {busy && <div className="text-xs text-muted">Hermes is typing…</div>}
     </div>
   );
+}
+
+interface NegotiationFooterProps {
+  item: Item;
+  busy: boolean;
+  isPaid: boolean;
+  dealPrice: number | null;
+  text: string;
+  setText: (text: string) => void;
+  onSend: (message?: string) => void;
+  onPay: () => void;
+}
+
+function NegotiationFooter({
+  item,
+  busy,
+  isPaid,
+  dealPrice,
+  text,
+  setText,
+  onSend,
+  onPay,
+}: NegotiationFooterProps) {
+  if (isPaid) {
+    return <PaidStatusPanel item={item} />;
+  }
+  if (dealPrice) {
+    return <DealAgreedPanel dealPrice={dealPrice} busy={busy} onPay={onPay} />;
+  }
+  return <ChatInputPanel text={text} setText={setText} busy={busy} onSend={onSend} />;
 }
 
 function PaidStatusPanel({ item }: { item: Item }) {
