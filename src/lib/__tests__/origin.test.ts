@@ -121,6 +121,9 @@ describe("isBaseUrl", () => {
     expect(isBaseUrl("example.com", "example.com", "http://%80")).toBe(false);
     expect(isBaseUrl("example.com", "example.com", "http://^invalid_host")).toBe(false);
     expect(isBaseUrl("example.com", "example.com", "://invalid-url")).toBe(false);
+    expect(isBaseUrl("example.com", "example.com", "http://:80")).toBe(false);
+    expect(isBaseUrl("example.com", "example.com", "http://[invalid]")).toBe(false);
+    expect(isBaseUrl("example.com", "example.com", "http:// spaces ")).toBe(false);
   });
 });
 
@@ -165,6 +168,9 @@ describe("isAllowedHost", () => {
     expect(isAllowedHost("example.com", "example.com", "http://[")).toBe(false);
     expect(isAllowedHost("example.com", "example.com", "http://%80")).toBe(false);
     expect(isAllowedHost("example.com", "example.com", "http://^invalid_host")).toBe(false);
+    expect(isAllowedHost("example.com", "example.com", "http://:80")).toBe(false);
+    expect(isAllowedHost("example.com", "example.com", "http://[invalid]")).toBe(false);
+    expect(isAllowedHost("example.com", "example.com", "http:// spaces ")).toBe(false);
     // Invalid entry followed by valid entry
     expect(
       isAllowedHost("app.example.com", "app.example.com", "http://[, app.example.com")
