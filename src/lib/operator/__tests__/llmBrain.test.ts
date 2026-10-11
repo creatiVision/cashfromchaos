@@ -92,6 +92,60 @@ describe("HermesBrain (LlmBrain)", () => {
       expect(promptArg).toContain("Seller's answers to questions: none.");
     });
 
+    it("handles empty answers object in prompt formatting", async () => {
+      const intakeWithEmptyAnswers: ItemIntake = {
+        clue: "Vintage Radio",
+        photos: [],
+        answers: {},
+      };
+
+      mockedRunHermesJson.mockResolvedValueOnce({
+        title: "Vintage Radio Receiver",
+        description: "Classic radio in good working order.",
+      });
+
+      await brain.analyzeItem(intakeWithEmptyAnswers);
+
+      const promptArg = mockedRunHermesJson.mock.calls[0][0];
+      expect(promptArg).toContain("Seller's answers to questions: .");
+    });
+
+    it("falls back to base title when out.title is missing or undefined", async () => {
+      mockedRunHermesJson.mockResolvedValueOnce({
+        description: "Valid description without a title.",
+      });
+
+      const analysis = await brain.analyzeItem(mockIntake);
+
+      expect(analysis.title).toBeDefined();
+      expect(analysis.title.length).toBeGreaterThan(0);
+      expect(analysis.description).toBe("Valid description without a title.");
+    });
+
+    it("treats whitespace-only description as undefined", async () => {
+      mockedRunHermesJson.mockResolvedValueOnce({
+        title: "Valid Title",
+        description: "   \n\t  ",
+      });
+
+      const analysis = await brain.analyzeItem(mockIntake);
+
+      expect(analysis.title).toBe("Valid Title");
+      expect(analysis.description).toBeUndefined();
+    });
+
+    it("filters, trims, and stringifies sellingPoints elements", async () => {
+      mockedRunHermesJson.mockResolvedValueOnce({
+        title: "Filtered Points Item",
+        description: "Item with mixed selling points.",
+        sellingPoints: ["  Feature 1  ", "", "   ", 100 as any, true as any],
+      });
+
+      const analysis = await brain.analyzeItem(mockIntake);
+
+      expect(analysis.sellingPoints).toEqual(["Feature 1", "100", "true"]);
+    });
+
     it("handles non-array sellingPoints gracefully", async () => {
       mockedRunHermesJson.mockResolvedValueOnce({
         title: "Test Item",
@@ -179,7 +233,38 @@ describe("HermesBrain (LlmBrain)", () => {
       expect(drafts[0].channelId).toBe("ebay-de-mock");
     });
 
-    it("updates primary listing draft body with description and selling points", async () => {
+    it("returns base drafts unmodified if analysis description is an empty string", async () => {
+      const intake: ItemIntake = { clue: "Fender Guitar", photos: [] };
+      const analysis = await brain.analyzeItem(intake);
+      analysis.description = "";
+
+      const plan: MarketplacePlan = {
+        primary: { channelId: "ebay-de-mock", name: "eBay DE Mock", fitScore: 0.9, reason: "Best market", feePct: 10, shippingFriendly: true },
+        alternates: [],
+        bundleRecommended: false,
+        strategy: ["Sell fast"],
+      };
+      const policy: CommercePolicy = {
+        currency: "EUR",
+        targetPrice: 100,
+        floorPrice: 80,
+        autoAcceptAtOrAbove: 95,
+        autoCounterDownTo: 85,
+        requireHumanBelow: 80,
+        maxFulfillmentSpend: 10,
+        allowedPaymentMethods: ["stripe"],
+        allowedChannels: ["ebay-de-mock"],
+        shippingAllowed: true,
+        pickupAllowed: true,
+        suspiciousBuyerEscalation: true,
+      };
+
+      const baseDrafts = await new FixtureBrain().draftListings(analysis, plan, policy);
+      const drafts = await brain.draftListings(analysis, plan, policy);
+      expect(drafts).toEqual(baseDrafts);
+    });
+
+    it("updates primary listing draft body with description and selling points while leaving alternate channels untouched", async () => {
       const intake: ItemIntake = { clue: "Fender Stratocaster", photos: [] };
       const analysis = await brain.analyzeItem(intake);
       analysis.description = "Authentic Fender Stratocaster in sunburst finish.";
@@ -206,18 +291,20 @@ describe("HermesBrain (LlmBrain)", () => {
         suspiciousBuyerEscalation: true,
       };
 
+      const baseDrafts = await new FixtureBrain().draftListings(analysis, plan, policy);
       const drafts = await brain.draftListings(analysis, plan, policy);
-      expect(drafts.length).toBeGreaterThanOrEqual(1);
+      expect(drafts.length).toBe(2);
 
       const primaryDraft = drafts.find((d) => d.channelId === "ebay-de-mock");
       expect(primaryDraft).toBeDefined();
       expect(primaryDraft?.body).toContain("Authentic Fender Stratocaster in sunburst finish.");
       expect(primaryDraft?.body).toContain("• Sunburst finish\n• Includes hard case");
+      // Preserves trailing shipping + CTA paragraphs
+      expect(primaryDraft?.body).toContain("Tracked shipping available.\n\nPriced to move. Serious buyers only.");
 
       const altDraft = drafts.find((d) => d.channelId === "vinted");
-      if (altDraft) {
-        expect(altDraft.body).not.toContain("• Sunburst finish");
-      }
+      const baseAltDraft = baseDrafts.find((d) => d.channelId === "vinted");
+      expect(altDraft).toEqual(baseAltDraft);
     });
 
     it("handles draft listing update when sellingPoints is empty", async () => {
@@ -252,7 +339,6 @@ describe("HermesBrain (LlmBrain)", () => {
       expect(primaryDraft?.body).toContain("Clean Fender Stratocaster.");
       expect(primaryDraft?.body).not.toContain("•");
     });
-  });
 
     it("returns empty array if super.draftListings returns empty drafts", async () => {
       const intake: ItemIntake = { clue: "Fender Guitar", photos: [] };
@@ -285,6 +371,8 @@ describe("HermesBrain (LlmBrain)", () => {
       const drafts = await brain.draftListings(analysis, plan, policy);
       expect(drafts).toEqual([]);
     });
+  });
+
   describe("handleBuyerMessage", () => {
     let mockItem: Item;
 
@@ -352,6 +440,63 @@ describe("HermesBrain (LlmBrain)", () => {
       // Fixed policy decision & reason from FixtureBrain are preserved
       expect(reply.decision).toBeDefined();
       expect(reply.reason).toBeDefined();
+    });
+
+    it("formats prompt with 'at €[price]' when base.price is defined", async () => {
+      mockedRunHermes.mockResolvedValueOnce("Counter reply text.");
+
+      const message: BuyerMessage = {
+        itemId: mockItem.id,
+        buyerName: "Alice",
+        text: "Will you accept €85?",
+        ts: Date.now(),
+      };
+
+      await brain.handleBuyerMessage(mockItem, message);
+
+      const promptArg = mockedRunHermes.mock.calls[0][0];
+      expect(promptArg).toContain("Your decision is already fixed and you must not change it:");
+      expect(promptArg).toContain("at €");
+    });
+
+    it("formats prompt without price when base.price is undefined", async () => {
+      mockedRunHermes.mockResolvedValueOnce("Informational reply text.");
+
+      const message: BuyerMessage = {
+        itemId: mockItem.id,
+        buyerName: "Bob",
+        text: "Is this item in working condition?",
+        ts: Date.now(),
+      };
+
+      await brain.handleBuyerMessage(mockItem, message);
+
+      const promptArg = mockedRunHermes.mock.calls[0][0];
+      expect(promptArg).toContain("Your decision is already fixed and you must not change it: ANSWER.");
+      expect(promptArg).not.toContain("ANSWER at €");
+    });
+
+    it("strictly preserves policy-bound fields from base reply even when Hermes generates prose", async () => {
+      const fixtureBrain = new FixtureBrain();
+
+      mockedRunHermes.mockResolvedValueOnce("Custom Hermes friendly reply text!");
+
+      const message: BuyerMessage = {
+        itemId: mockItem.id,
+        buyerName: "Charlie",
+        text: "I'll give you €95 for it",
+        ts: Date.now(),
+      };
+
+      const baseReply = await fixtureBrain.handleBuyerMessage(mockItem, message);
+      const hermesReply = await brain.handleBuyerMessage(mockItem, message);
+
+      expect(hermesReply.decision).toBe(baseReply.decision);
+      expect(hermesReply.price).toBe(baseReply.price);
+      expect(hermesReply.reason).toBe(baseReply.reason);
+      expect(hermesReply.dealAgreed).toBe(baseReply.dealAgreed);
+      expect(hermesReply.agreedPrice).toBe(baseReply.agreedPrice);
+      expect(hermesReply.reply).toBe("Custom Hermes friendly reply text!");
     });
 
     it("truncates replies longer than 400 characters", async () => {
