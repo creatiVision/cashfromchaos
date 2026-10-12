@@ -15,7 +15,7 @@ let cached: OperatorBrain | null = null;
 
 export function getOperator(): OperatorBrain {
   if (cached) return cached;
-  const mode = (process.env.OPERATOR_BRAIN ?? "hermes").toLowerCase();
+  const mode = (process.env.OPERATOR_BRAIN ?? "hermes").trim().toLowerCase();
   switch (mode) {
     case "fixture":
       // Explicit opt-out: pure deterministic engine, no CLI / child_process.
@@ -33,4 +33,8 @@ export function getOperator(): OperatorBrain {
     }
   }
   return cached;
+}
+
+export function resetOperatorCache(): void {
+  cached = null;
 }
