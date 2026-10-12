@@ -57,6 +57,16 @@ describe("UI Components (src/components/ui.tsx)", () => {
       expect(html).toContain(tone);
       expect(html).toContain("chip");
     });
+
+    it("falls back to default tone for unmapped confidence level", () => {
+      const unmappedConfidence = "unknown-level" as Confidence;
+      const html = renderToString(<ConfidenceBadge value={unmappedConfidence} />);
+
+      expect(html).toContain("confidence:");
+      expect(html).toContain("unknown-level");
+      expect(html).toContain("text-chaos border-chaos/40");
+      expect(html).toContain("chip");
+    });
   });
 
   describe("TraceList", () => {
@@ -140,6 +150,26 @@ describe("UI Components (src/components/ui.tsx)", () => {
 
       const html = renderToString(<TraceList events={events} />);
       expect(html).toContain("bg-muted");
+    });
+
+    it("renders empty list when events array is empty", () => {
+      const html = renderToString(<TraceList events={[]} />);
+      expect(html).toContain("<ol");
+      expect(html).not.toContain("<li");
+    });
+
+    it("omits detail element when event detail is undefined", () => {
+      const events: TraceEvent[] = [
+        {
+          ts: 1000,
+          actor: "system",
+          label: "Event without detail",
+        },
+      ];
+
+      const html = renderToString(<TraceList events={events} />);
+      expect(html).toContain("Event without detail");
+      expect(html).not.toContain("font-mono text-xs text-muted");
     });
   });
 
