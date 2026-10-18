@@ -238,6 +238,25 @@ describe("isTailscaleOrPrivate", () => {
 });
 
 describe("extractSafeProtocol", () => {
+  it("should return false when req.nextUrl is missing or undefined in extractSafeProtocol fallback", () => {
+    const dummyReq = {
+      headers: {
+        get: () => null,
+      },
+      nextUrl: undefined,
+    } as unknown as NextRequest;
+    expect(extractSafeProtocol(dummyReq)).toBe("http");
+  });
+
+  it("should return undefined when host header is missing in resolveTrustedOrigin", () => {
+    const dummyReq = {
+      headers: {
+        get: () => null,
+      },
+    } as unknown as NextRequest;
+    expect(resolveTrustedOrigin(dummyReq)).toBeUndefined();
+  });
+
   it("should extract http or https from x-forwarded-proto header", () => {
     const reqHttp = new NextRequest("http://example.com", {
       headers: { "x-forwarded-proto": "http" },
