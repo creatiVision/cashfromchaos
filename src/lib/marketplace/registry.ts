@@ -5,7 +5,6 @@
 // later without touching the UI or the operator brain.
 // ============================================================================
 
-import { randomUUID } from "crypto";
 import type { ListingDraft } from "@/lib/types";
 
 export interface ListingResult {
@@ -43,7 +42,7 @@ function mockAdapter(
       // Mock: pretend we posted. Real adapter would call the channel API.
       return {
         channelId: cfg.id,
-        externalId: `${cfg.id}_${randomUUID()}`,
+        externalId: `${cfg.id}_${crypto.randomUUID()}`,
         url: `/market/listing`,
         status: "live",
       };
