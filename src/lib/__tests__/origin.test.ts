@@ -242,6 +242,13 @@ describe("resolveTrustedOrigin", () => {
     expect(resolveTrustedOrigin(req)).toBe("https://marketplace.example.com");
   });
 
+  it("should return undefined if host format passes isValidHostFormat but fails parseHostInfo", () => {
+    const req = {
+      headers: new Map([["host", "localhost:65536"]]),
+    } as unknown as NextRequest;
+    expect(resolveTrustedOrigin(req)).toBeUndefined();
+  });
+
   it("should reject malicious host header injection attempts", () => {
     process.env.NEXT_PUBLIC_BASE_URL = "https://marketplace.example.com";
     const req = new NextRequest("https://marketplace.example.com/api/checkout", {
