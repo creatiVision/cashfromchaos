@@ -144,10 +144,14 @@ describe("isAllowedHost", () => {
     expect(isAllowedHost("example.com", "example.com", "http://%80")).toBe(false);
     expect(isAllowedHost("example.com", "example.com", "http://^invalid_host")).toBe(false);
     expect(isAllowedHost("example.com", "example.com", "http://:80")).toBe(false);
+    expect(isAllowedHost("example.com", "example.com", "http://domain.com:abc")).toBe(false);
     expect(isAllowedHost("example.com", "example.com", "http://[invalid]")).toBe(false);
     expect(isAllowedHost("example.com", "example.com", "http:// spaces ")).toBe(false);
     expect(
       isAllowedHost("app.example.com", "app.example.com", "http://[, app.example.com")
+    ).toBe(true);
+    expect(
+      isAllowedHost("app.example.com", "app.example.com", "http://domain.com:abc, https://app.example.com")
     ).toBe(true);
     expect(
       isAllowedHost("app.example.com", "app.example.com", "http://%80, https://app.example.com")
