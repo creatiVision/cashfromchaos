@@ -11,6 +11,38 @@ const PRIVATE_192_IP_REGEX = /^192\.168\.\d{1,3}\.\d{1,3}$/;
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const SAFE_PROTOCOLS = new Set(["http", "https"]);
 
+const ALLOWED_HOSTS_CACHE_LIMIT = 100;
+const allowedHostsCache = new Map<string, Set<string>>();
+
+function parseAllowedHosts(envAllowed: string): Set<string> {
+  const cached = allowedHostsCache.get(envAllowed);
+  if (cached) return cached;
+
+  const set = new Set<string>();
+  for (const entry of envAllowed.split(",")) {
+    const trimmed = entry.trim().toLowerCase();
+    if (!trimmed) continue;
+
+    set.add(trimmed);
+
+    if (trimmed.includes("://")) {
+      try {
+        const u = new URL(trimmed);
+        set.add(u.host.toLowerCase());
+        set.add(u.hostname.toLowerCase());
+      } catch {
+        // Ignore invalid URL entries
+      }
+    }
+  }
+
+  if (allowedHostsCache.size >= ALLOWED_HOSTS_CACHE_LIMIT) {
+    allowedHostsCache.clear();
+  }
+  allowedHostsCache.set(envAllowed, set);
+  return set;
+}
+
 /**
  * Validates rawHost structure before URL parsing to prevent Host Header parsing attacks
  * (e.g. userinfo injection, trailing paths/queries, or backslashes).
@@ -84,30 +116,8 @@ export function isAllowedHost(
 ): boolean {
   if (!envAllowed) return false;
 
-  for (const entry of envAllowed.split(",")) {
-    const trimmed = entry.trim().toLowerCase();
-    if (!trimmed) continue;
-
-    if (trimmed === hostWithPort || trimmed === hostname) {
-      return true;
-    }
-
-    if (trimmed.includes("://")) {
-      try {
-        const u = new URL(trimmed);
-        if (
-          u.host.toLowerCase() === hostWithPort ||
-          u.hostname.toLowerCase() === hostname
-        ) {
-          return true;
-        }
-      } catch {
-        // Ignore invalid URL entries
-      }
-    }
-  }
-
-  return false;
+  const allowedSet = parseAllowedHosts(envAllowed);
+  return allowedSet.has(hostWithPort) || allowedSet.has(hostname);
 }
 
 /**
