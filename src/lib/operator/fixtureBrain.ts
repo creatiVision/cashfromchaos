@@ -370,10 +370,18 @@ export class FixtureBrain implements OperatorBrain {
       // Pickup-capable = local/generalist channels; pure shipping specialists demote.
       return ad.kind !== "shipping";
     };
-    const opts = [
-      ...a.channels.filter(fits),
-      ...a.channels.filter((id) => !fits(id)),
-    ].map((id, i) => channelOption(id, i, input.category));
+    const fitting: string[] = [];
+    const nonFitting: string[] = [];
+    for (const id of a.channels) {
+      if (fits(id)) {
+        fitting.push(id);
+      } else {
+        nonFitting.push(id);
+      }
+    }
+    const opts = [...fitting, ...nonFitting].map((id, i) =>
+      channelOption(id, i, input.category)
+    );
     const [primary, ...alternates] = opts;
     return {
       primary,
