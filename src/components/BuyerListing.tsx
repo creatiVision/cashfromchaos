@@ -66,7 +66,7 @@ export function BuyerListing({ initial, paid }: { initial: Item; paid: boolean }
     if (data.url && isSafeRedirectUrl(data.url)) {
       window.location.href = data.url;
     } else if (data.url) {
-      console.error("Untrusted or unsafe checkout redirect URL:", data.url);
+      throw new Error(`Untrusted or unsafe checkout redirect URL: ${data.url}`);
     }
   }
 

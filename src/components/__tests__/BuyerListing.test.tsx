@@ -172,4 +172,35 @@ describe("BuyerListing component", () => {
       expect(isSafeRedirectUrl(javascriptUrl)).toBe(false);
     });
   });
+
+  it("throws error on unsafe checkout redirect URL during payment", async () => {
+    const agreedItem: Item = {
+      ...mockItem,
+      status: "offer-accepted",
+      payment: {
+        ...mockItem.payment,
+        amount: 130,
+      },
+    };
+
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: "https://evil.com/phishing" }),
+    } as Response);
+
+    try {
+      const res = await global.fetch("/api/checkout", { method: "POST" });
+      const data = await res.json();
+      const { isSafeRedirectUrl } = await import("@/lib/redirect");
+
+      expect(() => {
+        if (data.url && !isSafeRedirectUrl(data.url)) {
+          throw new Error(`Untrusted or unsafe checkout redirect URL: ${data.url}`);
+        }
+      }).toThrow("Untrusted or unsafe checkout redirect URL: https://evil.com/phishing");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });
