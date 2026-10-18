@@ -61,12 +61,44 @@ describe("POST /api/reset", () => {
       expect(body).toEqual({ ok: true, items: 3 });
     });
 
-    it("succeeds without Authorization header when auth is explicitly disabled", async () => {
+    it("succeeds without Authorization header when auth is explicitly disabled via CFC_DISABLE_API_AUTH", async () => {
       process.env.CFC_DISABLE_API_AUTH = "true";
       process.env.CFC_API_TOKEN = "secret_reset_token";
 
       const req = new NextRequest("http://localhost:3000/api/reset", {
         method: "POST",
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body).toEqual({ ok: true, items: 3 });
+    });
+
+    it("succeeds without Authorization header when auth is explicitly disabled via DISABLE_API_AUTH", async () => {
+      delete process.env.CFC_DISABLE_API_AUTH;
+      process.env.DISABLE_API_AUTH = "true";
+      process.env.CFC_API_TOKEN = "secret_reset_token";
+
+      const req = new NextRequest("http://localhost:3000/api/reset", {
+        method: "POST",
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body).toEqual({ ok: true, items: 3 });
+    });
+
+    it("succeeds with case-insensitive Bearer token", async () => {
+      delete process.env.CFC_DISABLE_API_AUTH;
+      process.env.CFC_API_TOKEN = "secret_reset_token";
+
+      const req = new NextRequest("http://localhost:3000/api/reset", {
+        method: "POST",
+        headers: {
+          authorization: "bearer secret_reset_token",
+        },
       });
       const res = await POST(req);
       expect(res.status).toBe(200);
@@ -128,6 +160,32 @@ describe("POST /api/reset", () => {
 
       const pedalItem = getItem("demo_pedal");
       expect(pedalItem?.status).toBe("listed");
+    });
+
+    it("handles multiple consecutive reset calls idempotently", async () => {
+      const req1 = new NextRequest("http://localhost:3000/api/reset", { method: "POST" });
+      const res1 = await POST(req1);
+      expect(res1.status).toBe(200);
+      expect(await res1.json()).toEqual({ ok: true, items: 3 });
+
+      const req2 = new NextRequest("http://localhost:3000/api/reset", { method: "POST" });
+      const res2 = await POST(req2);
+      expect(res2.status).toBe(200);
+      expect(await res2.json()).toEqual({ ok: true, items: 3 });
+
+      expect(listItems().length).toBe(3);
+    });
+
+    it("ignores request body or query parameters and resets successfully", async () => {
+      const req = new NextRequest("http://localhost:3000/api/reset?foo=bar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ extra: "data" }),
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true, items: 3 });
+      expect(listItems().length).toBe(3);
     });
   });
 });
