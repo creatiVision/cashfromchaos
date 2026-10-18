@@ -14,14 +14,15 @@ jest.mock("../hermesCli", () => ({
   runHermesJson: jest.fn(),
 }));
 
-const mockedRunHermes = runHermes as jest.MockedFunction<typeof runHermes>;
-const mockedRunHermesJson = runHermesJson as jest.MockedFunction<typeof runHermesJson>;
-
 describe("HermesBrain (LlmBrain)", () => {
   let brain: HermesBrain;
+  let mockedRunHermes: jest.MockedFunction<typeof runHermes>;
+  let mockedRunHermesJson: jest.MockedFunction<typeof runHermesJson>;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedRunHermes = runHermes as jest.MockedFunction<typeof runHermes>;
+    mockedRunHermesJson = runHermesJson as jest.MockedFunction<typeof runHermesJson>;
     brain = new HermesBrain();
   });
 
