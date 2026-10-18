@@ -8,6 +8,9 @@ const PRIVATE_10_IP_REGEX = /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 const PRIVATE_172_IP_REGEX = /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/;
 const PRIVATE_192_IP_REGEX = /^192\.168\.\d{1,3}\.\d{1,3}$/;
 
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const SAFE_PROTOCOLS = new Set(["http", "https"]);
+
 /**
  * Validates rawHost structure before URL parsing to prevent Host Header parsing attacks
  * (e.g. userinfo injection, trailing paths/queries, or backslashes).
@@ -47,7 +50,7 @@ export function parseHostInfo(rawHost: string): {
  * Checks if the hostname is a local address.
  */
 export function isLocalhost(hostname: string): boolean {
-  return ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+  return LOCAL_HOSTNAMES.has(hostname);
 }
 
 /**
@@ -134,7 +137,7 @@ export function extractSafeProtocol(req: NextRequest): string {
     req.nextUrl?.protocol?.replace(":", "") ??
     "http";
   const lowerProto = rawProto.toLowerCase();
-  return ["http", "https"].includes(lowerProto) ? lowerProto : "https";
+  return SAFE_PROTOCOLS.has(lowerProto) ? lowerProto : "https";
 }
 
 /**
