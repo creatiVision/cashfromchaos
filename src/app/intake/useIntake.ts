@@ -1,9 +1,7 @@
 "use client";
 
 import { useIntakeForm } from "./useIntakeForm";
-import { useItemAnalysis, type Phase } from "./useItemAnalysis";
-
-export type { Phase };
+import { useItemAnalysis } from "./useItemAnalysis";
 
 export function useIntake() {
   const form = useIntakeForm();
