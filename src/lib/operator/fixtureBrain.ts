@@ -109,14 +109,16 @@ function getNegotiationContext(item: Item, message: BuyerMessage): NegotiationCo
   const text = message.text.toLowerCase();
   const offer = message.offer ?? parseOffer(message.text);
 
-  const priorCounters = item.agentReplies
-    .filter(
-      (r) =>
-        r.decision === "counter" &&
-        typeof r.price === "number" &&
-        (r.price as number) < policy.targetPrice
-    )
-    .map((r) => r.price as number);
+  const priorCounters = item.agentReplies.reduce<number[]>((acc, r) => {
+    if (
+      r.decision === "counter" &&
+      typeof r.price === "number" &&
+      r.price < policy.targetPrice
+    ) {
+      acc.push(r.price);
+    }
+    return acc;
+  }, []);
   const counterFloor = priorCounters.length ? Math.min(...priorCounters) : 0;
   const lastCounter = priorCounters.length ? priorCounters[priorCounters.length - 1] : undefined;
   const buyerOffers = item.messages.filter(
