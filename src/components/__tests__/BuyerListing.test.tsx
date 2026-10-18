@@ -2,6 +2,7 @@ import { renderToString } from "react-dom/server";
 import { BuyerListing } from "../BuyerListing";
 import type { Item } from "@/lib/types";
 import { eur } from "@/lib/money";
+import { isSafeRedirectUrl } from "@/lib/redirect";
 
 const mockItem: Item = {
   id: "test-item-1",
@@ -148,5 +149,27 @@ describe("BuyerListing component", () => {
     expect(html).toContain("held");
     expect(html).toContain("Funds released on delivery.");
     expect(html).toContain("operation page");
+  });
+
+  describe("checkout redirect validation", () => {
+    it("validates trusted checkout URLs before redirecting", () => {
+      const trustedStripeUrl = "https://checkout.stripe.com/pay/cs_test_12345";
+      const trustedRelativeUrl = "/api/checkout/confirm?itemId=test-item-1";
+      const trustedPaypalUrl = "https://www.paypal.com/checkoutnow?token=EC-12345";
+
+      expect(isSafeRedirectUrl(trustedStripeUrl)).toBe(true);
+      expect(isSafeRedirectUrl(trustedRelativeUrl)).toBe(true);
+      expect(isSafeRedirectUrl(trustedPaypalUrl)).toBe(true);
+    });
+
+    it("rejects malicious or open redirect attempt URLs", () => {
+      const maliciousUrl = "https://evil-phishing-site.com/steal-creds";
+      const protocolRelativeUrl = "//evil.com";
+      const javascriptUrl = "javascript:alert('xss')";
+
+      expect(isSafeRedirectUrl(maliciousUrl)).toBe(false);
+      expect(isSafeRedirectUrl(protocolRelativeUrl)).toBe(false);
+      expect(isSafeRedirectUrl(javascriptUrl)).toBe(false);
+    });
   });
 });
