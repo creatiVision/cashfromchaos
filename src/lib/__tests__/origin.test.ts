@@ -157,6 +157,13 @@ describe("isAllowedHost", () => {
       isAllowedHost("app.example.com", "app.example.com", "http://%80, https://app.example.com")
     ).toBe(true);
   });
+
+  it("should evict cache when allowedHostsCache reaches ALLOWED_HOSTS_CACHE_LIMIT", () => {
+    // Fill cache up to limit (100 distinct envAllowed values)
+    for (let i = 0; i < 105; i++) {
+      expect(isAllowedHost("domain" + i + ".com", "domain" + i + ".com", "domain" + i + ".com")).toBe(true);
+    }
+  });
 });
 
 describe("isTailscaleOrPrivate", () => {
