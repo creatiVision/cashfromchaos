@@ -1,205 +1,228 @@
-# CashFromChaos
+# CashFromChaos — European Version
 
 > **I don’t want this. CashFromChaos sells it.**
 
-Autonomous, policy-bound recommerce operator for the **Hermes Agent Accelerated
-Business Hackathon** (Nous Research × NVIDIA × Stripe).
+Autonomous, policy-bound recommerce operator for the **Hermes Agent Accelerated Business Hackathon** (Nous Research × NVIDIA × Stripe).
 
-You send photos of a real object you no longer want and a one-line clue. Hermes
-runs the whole operation: understands the item, asks only the critical
-questions, routes it to the right marketplace, prices it, drafts listings,
-negotiates with buyers under an explicit policy, collects a Stripe-held payment,
-guides shipping/pickup, and releases payout on delivery.
+This is the **European Version** of CashFromChaos, specifically built for EU and DACH region online selling portals and European payment systems. All transactions, pricing rules, and ledger calculations are natively denominated in Euros (**€ / EUR**).
+
+You send photos of a real object you no longer want and a one-line clue. Hermes runs the whole operation: understands the item, asks only the critical questions, routes it to the right European marketplace, prices it in Euros, drafts listings, negotiates with buyers under an explicit policy, collects a Stripe or PayPal-powered held payment, guides shipping or local pickup, and releases payout on delivery confirmation.
 
 > Point your camera at things you don’t want. Hermes sells them.
 
-## Status — working demo (local-first)
+---
 
-This is a runnable Next.js app, not just planning docs. The full loop works
-end-to-end — **Hermes operates it live**, on a deterministic policy engine that
-keeps every take reliable for the demo video.
+## 🇪🇺 European Portals & Payment Integrations
 
-## Quick start
+CashFromChaos is pre-configured with adapters for major European C2C and specialized marketplaces, as well as European payment and carrier workflows:
 
+### Supported European & Global Marketplace Portals (`src/lib/marketplace/registry.ts`)
+1. **Kleinanzeigen.de (`kleinanzeigen-mock`)**: Germany's leading C2C classifieds portal — ideal for general electronics, used furniture, baby gear, and local C2C trade with optional shipping in the DACH region (0% fee).
+2. **eBay Germany / DACH (`ebay-de-mock`)**: Dedicated German eBay marketplace adapter optimized for high-demand electronics, collectibles, and music gear across Germany, Austria, and Switzerland (10% fee).
+3. **Wallapop (`wallapop-mock`)**: Major Southern European generalist C2C marketplace (Spain, Italy, Portugal) supporting local pickup and integrated regional shipping (0% fee).
+4. **Cardmarket-Style Collector Channel (`collector-forum-mock`)**: Specialized European trading card & TCG collector network for high-value cards, binders, and rare collectibles (5% fee).
+5. **Reverb Music Channel (`reverb-mock`)**: European and global specialist channel for musical instruments, guitar pedals, and audio gear (5% fee).
+6. **Local Pickup Channel (`local-pickup-mock`)**: Local C2C channel for bulky items (sofas, tables, heavy appliances) that strictly disables shipping costs (0% fee).
+7. **eBay Global (`ebay-mock`)**: Global reach fallback for rare or high-ticket international sales (11% fee).
+
+### European Payment & Custody Services (`src/lib/payments.ts`)
+- **Stripe Checkout (EUR / €)**: Native Euro payment processing. Configured with `payment_method_types: ["card", "paypal"]` to enable standard European credit/debit cards as well as **PayPal** through Stripe.
+- **PayPal Integration**: Direct PayPal checkout option for European buyers who prefer paying via PayPal balance or SEPA direct debit.
+- **Simulated Held Payment (Escrow-Like Flow)**: Out-of-the-box offline mode holding funds until buyer delivery/pickup confirmation before releasing net payout to the seller.
+- **European Fulfillment & Carrier Labels**: Integrated shipping workflows supporting European carriers (e.g. Correos, DHL Europe) with prepaid tracked shipping labels.
+
+---
+
+## 🛠️ Step-by-Step Installation Guide
+
+Follow this guide to set up and run CashFromChaos locally.
+
+### Prerequisites
+- **Node.js**: Version 18.x or 20.x (LTS recommended)
+- **npm**: Version 9.x or later
+- *(Optional)* **Hermes CLI**: If using the live local `hermes` LLM operator brain (`OPERATOR_BRAIN=hermes`)
+
+### Step 1: Clone the Repository & Install Dependencies
+Open your terminal and run:
 ```bash
+git clone https://github.com/your-org/cashfromchaos.git
+cd cashfromchaos
 npm install
-npm run dev          # http://localhost:3000
 ```
 
-Build / checks:
+### Step 2: Configure Environment Variables (Optional)
+By default, CashFromChaos runs **100% offline with zero setup required**, using simulated held payments and the deterministic policy engine or local Hermes CLI.
 
+If you wish to test with real Stripe test-mode Checkout, PayPal, or specific operator settings, create a `.env.local` file:
 ```bash
-npm run typecheck    # tsc --noEmit
-npm run build        # production build
-npm run start        # serve the production build
+cp .env.example .env.local
 ```
 
-No environment variables are required — payments run in a fully **simulated
-held-payment** mode out of the box. To use real Stripe test-mode Checkout, copy
-`.env.example` to `.env.local` and set `STRIPE_SECRET_KEY` (sk_test_…). In test
-mode pay with card `4242 4242 4242 4242`, any future expiry, any CVC. The
-post-payment redirect returns to whatever host you opened the app from (handy
-when serving to a phone over a LAN / Tailscale address, not just localhost).
+Edit `.env.local` with your preferred credentials:
+```env
+# Stripe test-mode key for real EUR card/PayPal checkout
+STRIPE_SECRET_KEY=sk_test_51...
 
-**Mobile full-screen:** the app ships a web manifest, so on a phone you can use
-Chrome/Safari → *Add to Home Screen* to launch it standalone, without the
-browser address bar.
+# Optional: Set base URL for mobile / Tailscale testing
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
 
-## What to click (demo path)
+# Operator Brain Selection: "hermes" (default, uses local hermes CLI) or "fixture" (pure offline deterministic)
+OPERATOR_BRAIN=hermes
 
-1. **/** — the hook. “Point your camera at things you don’t want.”
-2. **/intake** — pick a demo photo + clue, answer the 1–3 critical questions,
-   go live. (“Relax. I’ll handle it.”)
-3. **/dashboard** — operations view: every item, channel, target/floor price,
-   confidence, next action. `↺ Reset demo` re-seeds for a clean take.
-4. **/item/[id]** — the operation in detail: Analysis · Marketplace · Listings ·
-   Policy · Buyer · Payment · Fulfillment · P&L, plus a live decision trace.
-5. **/market** — the **buyer sandbox**. Open a listing, haggle with Hermes
-   (“Would you take €50?”), reach a deal, and pay with Stripe.
-6. Back on **/item/[id] → Fulfillment**, mark shipped, then confirm delivery →
-   funds released → net payout shown.
-
-See [`DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) for the scene-by-scene video script.
-
-## How it’s built
-
-- **Next.js 14 (App Router) + TypeScript + Tailwind.** No DB required; an
-  in-memory store seeds three demo items (collectible / music / bulky-local).
-- **Hermes is the operator** (`OperatorBrain`, `src/lib/types.ts`). The default
-  brain is **`HermesBrain`** (`src/lib/operator/llmBrain.ts` → the local `hermes`
-  CLI, `-z` single-shot; Nemotron via Nous Portal): it runs the live model that
-  drafts the listings and negotiates with buyers. It is **built on** a
-  deterministic **policy engine** (`FixtureBrain`, its base class) that holds
-  every decision — price, accept/counter, routing, spend — inside the seller's
-  `CommercePolicy`, and is the safe fallback if the CLI is ever unavailable.
-  Selected via `OPERATOR_BRAIN` (**default `hermes`**); set
-  `OPERATOR_BRAIN=fixture` to force pure-deterministic, fully-offline mode.
-- **Marketplace-agnostic routing.** Adapters are interfaces with mock
-  implementations (`src/lib/marketplace/registry.ts`): collector channel,
-  music channel, generalist, global, local-pickup. Hermes picks by item.
-- **Visible policy layer** (`CommercePolicy`): target/floor, auto-accept,
-  auto-counter, human-approval floor, max fulfillment spend, allowed channels
-  /payments, shipping vs pickup. Every brain must obey it — it can never accept
-  below floor without human approval, overspend, or take off-platform payment.
-- **Stripe-powered held payment** — escrow-like marketplace flow for demo
-  purposes; funds release after delivery confirmation. Real test-mode Checkout
-  when a key is present, otherwise simulated.
-
-## Architecture
-
-CashFromChaos is a single Next.js app — React/Tailwind UI, server API routes,
-and a typed domain core. No database: an in-memory store seeds three demo items.
-**Hermes is the operator** behind the `OperatorBrain` interface (with a
-deterministic engine as its base class and offline fallback), and the
-**`CommercePolicy` is the hard boundary it cannot cross.**
-
-```mermaid
-flowchart TB
-  subgraph CL["Browser · Next.js 14 App Router (React + Tailwind)"]
-    direction LR
-    SI["Seller intake /intake<br/>photos + one-line clue"]
-    OD["Ops dashboard /dashboard · /item/[id]"]
-    BS["Buyer sandbox /market<br/>negotiation chat + pay"]
-  end
-  subgraph API["API routes (server · force-dynamic)"]
-    direction LR
-    A1["/api/items"]
-    A2["/api/negotiate"]
-    A3["/api/checkout + /confirm"]
-    A4["/api/fulfillment"]
-  end
-  subgraph CORE["Domain core · src/lib"]
-    ST["In-memory store<br/>items · messages · ledger · trace"]
-    OB{{"OperatorBrain interface"}}
-    POL["CommercePolicy<br/>target/floor · auto-accept/counter<br/>human-approval floor · max spend"]
-    REG["Marketplace registry (mock)<br/>collector · reverb · wallapop · ebay · local"]
-    PAY["payments.ts<br/>held payment · payout · ledger"]
-  end
-  subgraph BR["Operator brain — Hermes (default)"]
-    HB["HermesBrain<br/>live operator · listings + negotiation"]
-    FX["FixtureBrain<br/>deterministic policy engine + fallback"]
-  end
-  subgraph EXT["External services"]
-    HC["hermes CLI -z<br/>Nemotron via Nous Portal"]
-    ST2["Stripe test-mode Checkout<br/>(or simulated)"]
-  end
-  SI --> A1
-  BS --> A2
-  BS --> A3
-  OD -. read .-> A1
-  OD --> A4
-  A1 --> ST
-  A2 --> ST
-  A3 --> PAY
-  A4 --> ST
-  ST --> OB
-  OB -->|"=hermes (default)"| HB
-  OB -->|"=fixture (opt-out)"| FX
-  HB -->|"runs the model on"| HC
-  HB -->|"extends · bounded by"| FX
-  FX -->|"enforces"| POL
-  FX -->|"routes via"| REG
-  PAY --> ST2
-  ST2 -. redirect .-> A3
+# Payment Provider Selection: "stripe", "paypal", or "simulated" (default: stripe if key present, else simulated)
+PAYMENT_PROVIDER=stripe
 ```
 
-**Hermes operates; policy is the boundary.** `HermesBrain` is the operator the
-buyer talks to. It *extends* a deterministic policy engine (`FixtureBrain`), so
-every *decision* — category, price band, accept/counter/escalate, the agreed
-number, fulfillment mode and max spend — is clamped to the seller's
-`CommercePolicy`. That guardrail is exactly what lets an autonomous LLM run the
-sale safely: Hermes can never push a price below floor, overspend, or take
-off-platform payment, and if the CLI is ever unavailable the deterministic path
-keeps the operation running.
+### Step 3: Run the Development Server
+Start the Next.js development server:
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Transaction lifecycle
+### Step 4: Verification & Production Build
+To check TypeScript types, run unit tests, or build for production:
+```bash
+# Type check
+npm run typecheck
 
-Every item moves through an explicit, observable state machine — the decision
-trace and P&L are built from these transitions:
+# Run unit tests
+npm test
 
-```mermaid
-stateDiagram-v2
-  [*] --> analyzed: seller intake (photos + clue)
-  analyzed --> listed: routed + priced + listing drafted
-  listed --> buyer_engaged: buyer messages
-  buyer_engaged --> offer_accepted: deal within policy
-  buyer_engaged --> escalated: below floor / scam / off-platform
-  escalated --> offer_accepted: human approves
-  offer_accepted --> paid: Stripe held payment
-  paid --> shipping_required: label generated / pickup arranged
-  shipping_required --> in_transit: seller ships
-  in_transit --> delivered: buyer confirms delivery
-  delivered --> payout_released: funds released + ledger
-  payout_released --> [*]
+# Build for production
+npm run build
+
+# Start production server
+npm run start
 ```
 
-### Request flow (happy path)
+---
 
-1. **Intake** — `POST /api/items` → `store.createItemFromIntake` runs the brain
-   pipeline `analyzeItem → chooseMarketplace → buildPolicy → draftListings`.
-2. **Negotiate** — `POST /api/negotiate` → `handleBuyerMessage` (policy-bound
-   decision + Hermes prose); a deal sets `offer-accepted`.
-3. **Pay** — `POST /api/checkout` → `payments.ts` → Stripe Checkout (or
-   simulated). Stripe redirects to `GET /api/checkout/confirm`, which holds the
-   payment and runs `decideFulfillment`.
-4. **Fulfil** — `POST /api/fulfillment` ship → deliver → payout released, ledger
-   and net P&L finalised.
+## 📖 Step-by-Step Usage Guide (With Examples)
 
-## Not in this MVP (by design)
+CashFromChaos operates through an intuitive workflow: **Intake → Operational Analysis & Policy Setup → Marketplace Routing → Buyer Sandbox Negotiation → Held Payment → Fulfillment & Payout**.
 
-Real marketplace automation, legal escrow, multi-user auth, whole-room
-inventory scanning. The differentiator is **policy-bound autonomous commerce
-over messy physical inventory**, demoed as a reliable, cinematic loop.
+Below are two detailed end-to-end examples demonstrating how the software handles different European product categories.
 
-## Image credits
+---
 
-Demo item photos are Creative Commons, used as placeholders for the sample
-inventory. Attribution per their licenses:
+### Example 1: Selling a Used Gaming PC
 
-| Image | Author | License | Source |
-|-------|--------|---------|--------|
-| `public/img/pokemon.jpg` | Klapi | CC BY-SA 4.0 | [Wikimedia Commons](https://commons.wikimedia.org/w/index.php?curid=119486616) |
-| `public/img/pedal.jpg` | Guitar Chalk | CC BY 2.0 | [Wikimedia Commons](https://commons.wikimedia.org/w/index.php?curid=81493678) |
-| `public/img/furniture.jpg` | Steven V. Rose | CC BY-SA 3.0 | [Wikimedia Commons](https://commons.wikimedia.org/w/index.php?curid=2385247) |
-| `public/img/stroller.jpg` | Ciara Ní Riain | CC BY-SA 4.0 | [Wikimedia Commons](https://commons.wikimedia.org/w/index.php?curid=191950513) |
-| `public/img/generic.jpg` | StockSnap | CC0 | [StockSnap](https://stocksnap.io/photo/white-room-Y5OWUE5TW7) |
+In this scenario, a seller wants to sell a pre-owned desktop PC in Europe. The software routes it to European electronics channels (Kleinanzeigen / eBay Germany) with tracked shipping.
+
+#### 1. Seller Intake (`/intake`)
+- **Photo**: Upload a photo of the desktop PC.
+- **One-line clue**: `"I want to sell this used gaming PC"`
+- **Critical Questions**:
+  1. *Does it power on and pass benchmark/display tests cleanly?* → **Fully working**
+  2. *What CPU/GPU specs or RAM are included?* → **i7, RTX 3070, 16GB RAM**
+- Tap **Confirm — Go Live**.
+
+#### 2. Operational Analysis & Policy (`/item/[id]`)
+Hermes automatically generates the operational strategy:
+- **Archetype**: Pre-owned Electronics / Computer
+- **Market Estimate**: €600 – €800
+- **Marketplace Routing**: Primary channel selected as **Kleinanzeigen.de (`kleinanzeigen-mock`)** or **eBay Germany (`ebay-de-mock`)** for high German/EU tech buyer demand.
+- **Commerce Policy**:
+  - Target Price: **€700.00**
+  - Floor Price (Seller limit): **€550.00**
+  - Auto-Counter Threshold: Concedes half the gap down to **€600.00**
+  - Human Approval: Required for any offer below **€550.00**
+  - Fulfillment: Tracked shipping enabled (Max spend: **€15.00**)
+
+#### 3. Buyer Negotiation (`/market`)
+A buyer opens the listing in the Buyer Sandbox:
+- **Buyer**: *"Would you take €450?"*
+  - **Hermes Reply**: *"€450 is too low for an RTX 3070 system. My floor is higher. I can do €650 if you buy today."* (Bounded by policy; offer was below €550 floor).
+- **Buyer**: *"How about €600?"*
+  - **Hermes Reply**: *"€600 works. I'll send a secure payment link now."* (Auto-accept threshold reached; deal agreed at **€600.00**).
+
+#### 4. Payment & Custody
+- The buyer clicks **Pay with Card / PayPal**.
+- The €600.00 payment is captured and marked as **Held in Custody**.
+
+#### 5. Shipping & Payout Release (`/item/[id] → Fulfillment`)
+- Hermes generates a prepaid tracked European shipping label (**€8.50**).
+- Seller drops the package at the post office and marks **Shipped**.
+- Upon delivery, buyer confirms receipt → status changes to **Delivered**.
+- **Ledger & P&L**:
+  - Gross Revenue: **+€600.00**
+  - Marketplace Fee (Kleinanzeigen 0% / eBay DE 10%): **-€0.00** or **-€60.00**
+  - Shipping Label: **-€8.50**
+  - **Net Payout Released to Seller**: **€531.50** (or **€591.50**)
+
+---
+
+### Example 2: Selling a Used Sofa (Bulky / Local Pickup)
+
+In this scenario, a seller wants to sell a large, heavy living room sofa. Hermes recognizes that shipping a sofa across Europe is cost-prohibitive and enforces a **Local Pickup Only** policy.
+
+#### 1. Seller Intake (`/intake`)
+- **Photo**: Upload a photo of the 3-seater fabric sofa.
+- **One-line clue**: `"I want to sell this living room sofa"`
+- **Critical Questions**:
+  1. *What are the dimensions (L x W x H)?* → **210cm x 90cm x 85cm**
+  2. *Any stains, tears, or pet wear?* → **Good condition, no stains**
+- Tap **Confirm — Go Live**.
+
+#### 2. Operational Analysis & Policy (`/item/[id]`)
+Hermes evaluates the item:
+- **Archetype**: Bulky Furniture / Home
+- **Market Estimate**: €120 – €250
+- **Marketplace Routing**: Routed to **Local Pickup Channel (`local-pickup-mock`)** and **Kleinanzeigen.de (`kleinanzeigen-mock`)**.
+- **Commerce Policy**:
+  - Target Price: **€180.00**
+  - Floor Price: **€100.00**
+  - Fulfillment Mode: **Strictly Local Pickup Only** (`shippingFriendly: false`). Shipping spend limit set to **€0.00**.
+
+#### 3. Buyer Negotiation & Policy Enforcement (`/market`)
+A buyer attempts to request shipping:
+- **Buyer**: *"I love the sofa! Can you ship it to my apartment in Berlin for €180?"*
+  - **Hermes Reply**: *"This sofa is local pickup only in accordance with our policy. I cannot ship bulky furniture, but you are welcome to pick it up in person!"* (Strict policy refusal).
+- **Buyer**: *"Okay, I'll bring a van. Would you accept €140 for local pickup?"*
+  - **Hermes Reply**: *"€140 is a deal for local pickup. Pay via the link to lock in your pickup reservation."* (Deal agreed at **€140.00**).
+
+#### 4. Payment & Local Pickup Fulfillment
+- Buyer pays **€140.00** via Stripe / PayPal. Payment is held in custody.
+- Hermes provides pickup instructions and address coordination.
+- Buyer arrives with a van, inspects the sofa, and takes it home.
+- Seller taps **Confirm Local Pickup / Delivery**.
+- **Ledger & P&L**:
+  - Gross Revenue: **+€140.00**
+  - Marketplace Fee (Local Pickup 0%): **€0.00**
+  - Shipping Spend: **€0.00**
+  - **Net Payout Released to Seller**: **€140.00**
+
+---
+
+## 🛠️ How It's Built
+
+- **Next.js 14 (App Router) + TypeScript + Tailwind CSS**: Zero-database architecture using an in-memory store (`src/lib/store.ts`) persisting state across hot reloads.
+- **Hermes Operator Brain (`src/lib/operator/llmBrain.ts`)**: Integrates with the local `hermes` CLI (powered by Nemotron via Nous Portal) to analyze items and draft human-like buyer replies.
+- **Deterministic Policy Engine (`FixtureBrain`, `src/lib/operator/fixtureBrain.ts`)**: Base class providing safe, bounded fallback execution. Ensures Hermes can never sell below the floor price, overspend on shipping, or accept unauthorized payment methods.
+- **Marketplace Registry (`src/lib/marketplace/registry.ts`)**: Modular adapters for European C2C portals (Kleinanzeigen, eBay DE, Wallapop, Cardmarket, Reverb, Local Pickup).
+- **Stripe & PayPal Custody (`src/lib/payments.ts`)**: Escrow-like held payment flow in Euros (€) releasing funds upon delivery.
+
+---
+
+## 🎥 Quick Demo Tour
+
+1. **` / `**: Landing page introducing CashFromChaos.
+2. **`/intake`**: Upload photo, enter clue, answer 1-2 critical questions.
+3. **`/dashboard`**: Ops overview of active listings, target prices, confidence levels, and reset controls.
+4. **`/item/[id]`**: Detailed decision trace, policy parameters, listings, and P&L ledger.
+5. **`/market`**: Buyer sandbox for live negotiation chat and payment checkout.
+6. **Fulfillment**: Mark shipped / delivered to trigger automated payout release.
+
+For the full scene-by-scene script, see [`DEMO_SCRIPT.md`](./DEMO_SCRIPT.md).
+
+---
+
+## 📜 Image Credits
+
+Demo photos are used under Creative Commons licenses:
+- `public/img/pokemon.jpg`: Klapi (CC BY-SA 4.0)
+- `public/img/pedal.jpg`: Guitar Chalk (CC BY 2.0)
+- `public/img/furniture.jpg`: Steven V. Rose (CC BY-SA 3.0)
+- `public/img/stroller.jpg`: Ciara Ní Riain (CC BY-SA 4.0)
+- `public/img/generic.jpg`: StockSnap (CC0)
