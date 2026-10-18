@@ -217,6 +217,16 @@ describe("isTailscaleOrPrivate", () => {
     expect(isTailscaleOrPrivate(throwingHost)).toBe(false);
     expect(isTailscaleOrPrivate(null as unknown as string)).toBe(false);
     expect(isTailscaleOrPrivate(undefined as unknown as string)).toBe(false);
+    expect(isTailscaleOrPrivate(12345 as unknown as string)).toBe(false);
+    expect(isTailscaleOrPrivate(Symbol("test") as unknown as string)).toBe(false);
+
+    const throwingRegexHost = {
+      endsWith: () => false,
+      toString: () => {
+        throw new Error("Simulated Regex conversion failure");
+      },
+    } as unknown as string;
+    expect(isTailscaleOrPrivate(throwingRegexHost)).toBe(false);
   });
 });
 
