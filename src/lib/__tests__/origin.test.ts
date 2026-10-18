@@ -169,10 +169,50 @@ describe("isTailscaleOrPrivate", () => {
     expect(isTailscaleOrPrivate("192.168.1.100")).toBe(true);
   });
 
+  it("should test boundaries for CGNAT (100.64.0.0/10) IP range", () => {
+    expect(isTailscaleOrPrivate("100.63.255.255")).toBe(false);
+    expect(isTailscaleOrPrivate("100.64.0.0")).toBe(true);
+    expect(isTailscaleOrPrivate("100.127.255.255")).toBe(true);
+    expect(isTailscaleOrPrivate("100.128.0.0")).toBe(false);
+  });
+
+  it("should test boundaries for 10.0.0.0/8 IP range", () => {
+    expect(isTailscaleOrPrivate("9.255.255.255")).toBe(false);
+    expect(isTailscaleOrPrivate("10.0.0.0")).toBe(true);
+    expect(isTailscaleOrPrivate("10.255.255.255")).toBe(true);
+    expect(isTailscaleOrPrivate("11.0.0.0")).toBe(false);
+  });
+
+  it("should test boundaries for 172.16.0.0/12 IP range", () => {
+    expect(isTailscaleOrPrivate("172.15.255.255")).toBe(false);
+    expect(isTailscaleOrPrivate("172.16.0.0")).toBe(true);
+    expect(isTailscaleOrPrivate("172.31.255.255")).toBe(true);
+    expect(isTailscaleOrPrivate("172.32.0.0")).toBe(false);
+  });
+
+  it("should test boundaries for 192.168.0.0/16 IP range", () => {
+    expect(isTailscaleOrPrivate("192.167.255.255")).toBe(false);
+    expect(isTailscaleOrPrivate("192.168.0.0")).toBe(true);
+    expect(isTailscaleOrPrivate("192.168.255.255")).toBe(true);
+    expect(isTailscaleOrPrivate("192.169.0.0")).toBe(false);
+  });
+
   it("should return false for public hostnames/IPs when baseUrlEnv is not set", () => {
     expect(isTailscaleOrPrivate("public.com")).toBe(false);
     expect(isTailscaleOrPrivate("8.8.8.8")).toBe(false);
     expect(isTailscaleOrPrivate("172.32.0.1")).toBe(false);
+  });
+
+  it("should return false gracefully if parsing or regex operations throw an exception", () => {
+    const throwingHost = {
+      endsWith: () => {
+        throw new Error("Simulated String parsing failure");
+      },
+    } as unknown as string;
+
+    expect(isTailscaleOrPrivate(throwingHost)).toBe(false);
+    expect(isTailscaleOrPrivate(null as unknown as string)).toBe(false);
+    expect(isTailscaleOrPrivate(undefined as unknown as string)).toBe(false);
   });
 });
 
