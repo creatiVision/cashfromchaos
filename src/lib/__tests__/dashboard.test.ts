@@ -125,16 +125,8 @@ describe("calculateDashboardStats", () => {
     expect(warmup.live).toBeGreaterThan(0);
 
     const iterations = 500;
-    const start = performance.now();
     for (let iter = 0; iter < iterations; iter++) {
       calculateDashboardStats(items);
     }
-    const durationMs = performance.now() - start;
-    console.log(
-      `Benchmark (10,000 items x 500 runs): ${durationMs.toFixed(2)}ms (${(
-        (iterations / durationMs) *
-        1000
-      ).toFixed(0)} ops/sec)`
-    );
   });
 });
