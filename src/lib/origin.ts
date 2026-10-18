@@ -116,13 +116,17 @@ export function isTailscaleOrPrivate(
 ): boolean {
   if (baseUrlEnv) return false;
 
-  return (
-    hostname.endsWith(".ts.net") ||
-    CGNAT_IP_REGEX.test(hostname) ||
-    PRIVATE_10_IP_REGEX.test(hostname) ||
-    PRIVATE_172_IP_REGEX.test(hostname) ||
-    PRIVATE_192_IP_REGEX.test(hostname)
-  );
+  try {
+    return (
+      hostname.endsWith(".ts.net") ||
+      CGNAT_IP_REGEX.test(hostname) ||
+      PRIVATE_10_IP_REGEX.test(hostname) ||
+      PRIVATE_172_IP_REGEX.test(hostname) ||
+      PRIVATE_192_IP_REGEX.test(hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
