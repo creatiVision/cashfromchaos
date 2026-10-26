@@ -235,6 +235,18 @@ describe("isTailscaleOrPrivate", () => {
     } as unknown as string;
     expect(isTailscaleOrPrivate(throwingRegexHost)).toBe(false);
   });
+
+  it("should catch exceptions thrown during RegExp.prototype.test execution and return false", () => {
+    const regexSpy = jest
+      .spyOn(RegExp.prototype, "test")
+      .mockImplementationOnce(() => {
+        throw new Error("Simulated RegExp test error");
+      });
+
+    expect(isTailscaleOrPrivate("10.0.0.1")).toBe(false);
+    expect(regexSpy).toHaveBeenCalled();
+    regexSpy.mockRestore();
+  });
 });
 
 describe("extractSafeProtocol", () => {
