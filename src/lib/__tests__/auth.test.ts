@@ -55,6 +55,24 @@ describe("auth", () => {
       });
     });
 
+    it("returns 401 by default when CFC_API_TOKEN is whitespace only", async () => {
+      process.env.CFC_API_TOKEN = "   ";
+      delete process.env.CFC_DISABLE_API_AUTH;
+
+      const req = new NextRequest("http://localhost:3000/api/protected", {
+        headers: { authorization: "Bearer   " },
+      });
+      const res = checkApiAuth(req);
+
+      expect(res).not.toBeNull();
+      expect(res?.status).toBe(401);
+
+      const data = await res?.json();
+      expect(data).toEqual({
+        error: "Missing or invalid API token. Send 'Authorization: Bearer <CFC_API_TOKEN>'.",
+      });
+    });
+
     it("returns null when auth is explicitly disabled", () => {
       process.env.CFC_DISABLE_API_AUTH = "true";
       const req = new NextRequest("http://localhost:3000/api/protected");
