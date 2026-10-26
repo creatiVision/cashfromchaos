@@ -65,11 +65,25 @@ describe("GET /api/checkout/confirm", () => {
       process.env.DEMO_MODE = "true";
 
       const itemId = "demo_pokemon";
-      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_${itemId}`);
+      const item = getItem(itemId);
+      if (item) item.payment.sessionId = "sim_valid_session_123";
+      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_valid_session_123`);
       const res = await GET(req);
 
       expect(res.status).toBe(307);
       expect(res.headers.get("location")).toBe(`http://localhost:3000/market/${itemId}?paid=1`);
+    });
+
+    it("returns 400 Bad Request if simulated session ID does not match stored item payment session ID", async () => {
+      const itemId = "demo_pokemon";
+      const item = getItem(itemId);
+      if (item) item.payment.sessionId = "sim_correct_uuid_123";
+
+      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_${itemId}`);
+      const res = await GET(req);
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body).toEqual({ error: "Invalid simulated session" });
     });
 
     it("returns 400 Bad Request if simulated session ID does not match item ID", async () => {
@@ -82,17 +96,19 @@ describe("GET /api/checkout/confirm", () => {
 
     it("confirms payment, updates item status/fulfillment, and redirects when simulated session is valid", async () => {
       const itemId = "demo_pokemon";
-      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_${itemId}`);
+      const item = getItem(itemId);
+      if (item) item.payment.sessionId = "sim_valid_session_123";
+      const req = new NextRequest(`http://localhost:3000/api/checkout/confirm?item=${itemId}&session=sim_valid_session_123`);
       const res = await GET(req);
 
       expect(res.status).toBe(307); // Next.js NextResponse.redirect default status
       expect(res.headers.get("location")).toBe(`http://localhost:3000/market/${itemId}?paid=1`);
 
-      const item = getItem(itemId);
-      expect(item?.payment.status).toBe("held");
-      expect(item?.status).toBe("shipping-required");
-      expect(item?.fulfillment).toBeDefined();
-      expect(item?.ledger.length).toBeGreaterThan(0);
+      const updatedItem = getItem(itemId);
+      expect(updatedItem?.payment.status).toBe("held");
+      expect(updatedItem?.status).toBe("shipping-required");
+      expect(updatedItem?.fulfillment).toBeDefined();
+      expect(updatedItem?.ledger.length).toBeGreaterThan(0);
     });
   });
 
@@ -187,11 +203,11 @@ describe("GET /api/checkout/confirm", () => {
       expect(res.status).toBe(307);
       expect(res.headers.get("location")).toBe(`http://localhost:3000/market/${itemId}?paid=1`);
 
-      const item = getItem(itemId);
-      expect(item?.payment.status).toBe("held");
-      expect(item?.status).toBe("shipping-required");
-      expect(item?.fulfillment).toBeDefined();
-      expect(item?.ledger.length).toBeGreaterThan(0);
+      const updatedItem = getItem(itemId);
+      expect(updatedItem?.payment.status).toBe("held");
+      expect(updatedItem?.status).toBe("shipping-required");
+      expect(updatedItem?.fulfillment).toBeDefined();
+      expect(updatedItem?.ledger.length).toBeGreaterThan(0);
     });
   });
 });

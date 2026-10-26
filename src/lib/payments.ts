@@ -71,7 +71,7 @@ const paypalProvider: PaymentProvider = {
   id: "paypal",
   isConfigured: () => paypalConfigured(),
   async createCheckout(item, base) {
-    const sessionId = `pp_${item.id}`;
+    const sessionId = `pp_${crypto.randomUUID()}`;
     return {
       sessionId,
       url: `${base}/api/checkout/confirm?item=${item.id}&session=${sessionId}&provider=paypal`,
@@ -83,7 +83,7 @@ const simulatedProvider: PaymentProvider = {
   id: "simulated",
   isConfigured: () => true,
   async createCheckout(item, base) {
-    const sessionId = `sim_${item.id}`;
+    const sessionId = `sim_${crypto.randomUUID()}`;
     return {
       sessionId,
       url: `${base}/api/checkout/confirm?item=${item.id}&session=${sessionId}&sim=1`,
