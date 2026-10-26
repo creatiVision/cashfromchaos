@@ -1,3 +1,4 @@
+import type { Archetype } from "@/lib/operator/archetypes";
 // ============================================================================
 // CashFromChaos — core domain types
 // ----------------------------------------------------------------------------
@@ -73,6 +74,8 @@ export interface ItemAnalysis {
   description?: string;
   /** Optional short selling points generated alongside the description. */
   sellingPoints?: string[];
+  /** Cached archetype matching result to avoid redundant matching loops. */
+  matchedArchetype?: Archetype;
 }
 
 // ---------------------------------------------------------------------------
