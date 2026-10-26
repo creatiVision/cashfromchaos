@@ -31,7 +31,7 @@ function safeCompare(a: string, b: string): boolean {
 export function checkApiAuth(req: NextRequest): NextResponse | null {
   if (isApiAuthDisabled()) return null;
 
-  const expectedToken = process.env.CFC_API_TOKEN ?? "";
+  const expectedToken = (process.env.CFC_API_TOKEN ?? "").trim();
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
 
