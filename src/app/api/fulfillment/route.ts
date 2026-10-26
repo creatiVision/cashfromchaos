@@ -14,14 +14,14 @@ export async function POST(req: NextRequest) {
   const denied = checkApiAuth(req);
   if (denied) return denied;
 
-  let body: any;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { itemId, action } = body ?? {};
+  const { itemId, action } = (body as Record<string, unknown>) ?? {};
   if (!itemId || !action) {
     return NextResponse.json({ error: "Missing itemId or action" }, { status: 400 });
   }
