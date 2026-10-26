@@ -21,12 +21,17 @@ import type {
 
 interface Store {
   items: Map<string, Item>;
+  sortedCache: Item[] | null;
   seeded: boolean;
 }
 
 const g = globalThis as unknown as { __cfc_store?: Store };
 function store(): Store {
-  if (!g.__cfc_store) g.__cfc_store = { items: new Map(), seeded: false };
+  if (!g.__cfc_store) {
+    g.__cfc_store = { items: new Map(), sortedCache: null, seeded: false };
+  } else if (g.__cfc_store.sortedCache === undefined) {
+    g.__cfc_store.sortedCache = null;
+  }
   return g.__cfc_store;
 }
 
@@ -121,11 +126,17 @@ export function getItem(id: string): Item | undefined {
 }
 
 export function listItems(): Item[] {
-  return [...store().items.values()].sort((a, b) => b.createdAt - a.createdAt);
+  const s = store();
+  if (!s.sortedCache) {
+    s.sortedCache = [...s.items.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }
+  return [...s.sortedCache];
 }
 
 export function saveItem(item: Item): void {
-  store().items.set(item.id, item);
+  const s = store();
+  s.items.set(item.id, item);
+  s.sortedCache = null;
 }
 
 export function setStatus(item: Item, status: TransactionStatus, opts: { skipSave?: boolean } = {}): void {
@@ -188,6 +199,7 @@ let seedPromise: Promise<void> | null = null;
 export async function resetDemo(): Promise<void> {
   const s = store();
   s.items.clear();
+  s.sortedCache = null;
   s.seeded = false;
   seedPromise = null;
   await ensureSeeded();
