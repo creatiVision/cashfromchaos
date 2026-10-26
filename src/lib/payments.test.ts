@@ -330,7 +330,7 @@ describe('payments module', () => {
         const checkout = await createCheckout(item);
 
         expect(checkout.provider).toBe('simulated');
-        expect(checkout.sessionId).toBe('sim_item-123');
+        expect(checkout.sessionId).toMatch(/^sim_[0-9a-f-]+$/);
       });
 
       it('falls back to simulated provider when stripe is requested but STRIPE_SECRET_KEY is missing', async () => {
@@ -341,10 +341,8 @@ describe('payments module', () => {
         const checkout = await createCheckout(item);
 
         expect(checkout.provider).toBe('simulated');
-        expect(checkout.sessionId).toBe('sim_item-123');
-        expect(checkout.url).toBe(
-          'http://localhost:3000/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
-        );
+        expect(checkout.sessionId).toMatch(/^sim_[0-9a-f-]+$/);
+        expect(checkout.url).toMatch(/^http:\/\/localhost:3000\/api\/checkout\/confirm\?item=item-123&session=sim_[0-9a-f-]+&sim=1$/);
       });
 
       it('falls back to simulated provider when paypal is requested but credentials are missing', async () => {
@@ -370,9 +368,7 @@ describe('payments module', () => {
         const item = mockItem(150, 'eBay');
         const checkout = await createCheckout(item, 'https://custom-origin.com');
 
-        expect(checkout.url).toBe(
-          'https://custom-origin.com/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
-        );
+        expect(checkout.url).toMatch(/^https:\/\/custom-origin\.com\/api\/checkout\/confirm\?item=item-123&session=sim_[0-9a-f-]+&sim=1$/);
       });
 
       it('uses NEXT_PUBLIC_BASE_URL when origin is omitted', async () => {
@@ -382,9 +378,7 @@ describe('payments module', () => {
         const item = mockItem(150, 'eBay');
         const checkout = await createCheckout(item);
 
-        expect(checkout.url).toBe(
-          'https://staging.my-site.com/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
-        );
+        expect(checkout.url).toMatch(/^https:\/\/staging\.my-site\.com\/api\/checkout\/confirm\?item=item-123&session=sim_[0-9a-f-]+&sim=1$/);
       });
 
       it('uses default localhost:3000 when both origin and NEXT_PUBLIC_BASE_URL are missing', async () => {
@@ -394,9 +388,7 @@ describe('payments module', () => {
         const item = mockItem(150, 'eBay');
         const checkout = await createCheckout(item);
 
-        expect(checkout.url).toBe(
-          'http://localhost:3000/api/checkout/confirm?item=item-123&session=sim_item-123&sim=1'
-        );
+        expect(checkout.url).toMatch(/^http:\/\/localhost:3000\/api\/checkout\/confirm\?item=item-123&session=sim_[0-9a-f-]+&sim=1$/);
       });
     });
   });

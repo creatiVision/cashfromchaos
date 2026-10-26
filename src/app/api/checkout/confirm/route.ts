@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         { status: 403 }
       );
     }
-    if (sessionId !== `sim_${itemId}`) {
+    if (!item.payment.sessionId || sessionId !== item.payment.sessionId) {
       return NextResponse.json({ error: "Invalid simulated session" }, { status: 400 });
     }
   }

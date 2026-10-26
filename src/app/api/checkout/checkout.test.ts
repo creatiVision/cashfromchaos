@@ -244,15 +244,13 @@ describe("POST /api/checkout", () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({
-      url: "http://localhost:3000/api/checkout/confirm?item=demo_pokemon&session=sim_demo_pokemon&sim=1",
-      provider: "simulated",
-    });
+    expect(body.provider).toBe("simulated");
+    expect(body.url).toMatch(/^http:\/\/localhost:3000\/api\/checkout\/confirm\?item=demo_pokemon&session=sim_[0-9a-f-]+&sim=1$/);
 
     const updatedItem = getItem("demo_pokemon");
     expect(updatedItem?.payment.status).toBe("pending");
     expect(updatedItem?.payment.provider).toBe("simulated");
-    expect(updatedItem?.payment.sessionId).toBe("sim_demo_pokemon");
+    expect(updatedItem?.payment.sessionId).toMatch(/^sim_[0-9a-f-]+$/);
     expect(updatedItem?.payment.checkoutUrl).toBe(body.url);
     expect(updatedItem?.trace.some((t) => t.label.includes("Checkout created"))).toBe(true);
   });
