@@ -208,6 +208,8 @@ export interface Item {
   payment: Payment;
   fulfillment?: FulfillmentPlan;
   ledger: LedgerEntry[];
+  /** Cached net payout calculated from ledger. */
+  netPayout?: number;
   /** Append-only operational trace for the dashboard. */
   trace: TraceEvent[];
 }
