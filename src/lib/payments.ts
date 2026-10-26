@@ -140,6 +140,7 @@ export async function createCheckout(
 // Ledger / P&L. Built when payment is captured; payout finalizes on delivery.
 // ---------------------------------------------------------------------------
 export function buildLedger(item: Item): LedgerEntry[] {
+  delete item.netPayout;
   const gross = item.payment.amount;
   const channel = item.plan.primary;
   const feePct = channel.feePct ?? 0;
@@ -160,5 +161,17 @@ export function buildLedger(item: Item): LedgerEntry[] {
 }
 
 export function netPayout(item: Item): number {
-  return round2(item.ledger.reduce((acc, e) => acc + e.amount, 0));
+  if (item.netPayout !== undefined) {
+    return item.netPayout;
+  }
+  const ledger = item.ledger;
+  let total = 0;
+  if (ledger) {
+    for (let i = 0; i < ledger.length; i++) {
+      total += ledger[i].amount;
+    }
+  }
+  const result = round2(total);
+  item.netPayout = result;
+  return result;
 }
