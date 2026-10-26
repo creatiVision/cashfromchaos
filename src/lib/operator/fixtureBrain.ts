@@ -358,11 +358,12 @@ export class FixtureBrain implements OperatorBrain {
       estimatedMarketLow: low,
       estimatedMarketHigh: high,
       fulfillment: eff,
+      matchedArchetype: a,
     };
   }
 
   async chooseMarketplace(input: ItemAnalysis): Promise<MarketplacePlan> {
-    const a = matchArchetype(input.title + " " + input.category);
+    const a = input.matchedArchetype ?? matchArchetype(input.title + " " + input.category);
     const eff = input.fulfillment ?? a.fulfillment;
     // Rank compatible channels first; keep the rest as fallbacks.
     const fits = (id: string) => {
@@ -394,7 +395,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async buildPolicy(analysis: ItemAnalysis, plan: MarketplacePlan): Promise<CommercePolicy> {
-    const a = matchArchetype(analysis.title + " " + analysis.category);
+    const a = analysis.matchedArchetype ?? matchArchetype(analysis.title + " " + analysis.category);
     const mid = (analysis.estimatedMarketLow + analysis.estimatedMarketHigh) / 2;
     // Natural-looking prices (e.g. €120 / €75 / €55) instead of €119.6 / €73.75.
     const target = niceRound(analysis.estimatedMarketHigh * 0.92);
@@ -465,7 +466,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async decideFulfillment(item: Item): Promise<FulfillmentPlan> {
-    const a = matchArchetype(item.analysis.title + " " + item.analysis.category);
+    const a = item.analysis.matchedArchetype ?? matchArchetype(item.analysis.title + " " + item.analysis.category);
     const eff = item.analysis.fulfillment ?? a.fulfillment;
     if (eff === "local-pickup") {
       return {
