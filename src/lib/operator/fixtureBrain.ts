@@ -321,7 +321,7 @@ export const handleCounterOffer: BuyerMessageHandler = (ctx) => {
 };
 
 /** Chain of Responsibility handlers executed in sequence. */
-const buyerMessageHandlers: BuyerMessageHandler[] = [
+export const buyerMessageHandlers: BuyerMessageHandler[] = [
   handleScam,
   handleProbing,
   handleShippingRequest,

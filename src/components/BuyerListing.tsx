@@ -7,7 +7,7 @@ import Link from "next/link";
 import type { AgentReply, Item } from "@/lib/types";
 import { eur } from "@/lib/money";
 
-export interface ChatLine {
+interface ChatLine {
   who: "buyer" | "hermes";
   text: string;
   decision?: AgentReply["decision"];

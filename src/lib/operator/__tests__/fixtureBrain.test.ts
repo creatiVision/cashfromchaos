@@ -423,4 +423,108 @@ describe("FixtureBrain - handleBuyerMessage negotiation state machine", () => {
       expect(analysis.rationale.some((r) => r.includes("shipping only"))).toBe(true);
     });
   });
+
+  describe("Fallback behavior and edge cases", () => {
+    it("should use fallback channel configuration when channel adapter is not found", async () => {
+      const customAnalysis: ItemAnalysis = {
+        ...baseItem.analysis,
+        matchedArchetype: {
+          ...baseItem.analysis.matchedArchetype!,
+          channels: ["unknown-channel-xyz"],
+        },
+      };
+
+      const plan = await brain.chooseMarketplace(customAnalysis);
+      expect(plan.primary).toEqual({
+        channelId: "unknown-channel-xyz",
+        name: "unknown-channel-xyz",
+        fitScore: 0.5,
+        reason: "Fallback channel.",
+        feePct: 0,
+        shippingFriendly: true,
+      });
+    });
+
+    it("should fallback to matching archetype from title and category when matchedArchetype is missing", async () => {
+      const analysisWithoutArchetype: ItemAnalysis = {
+        title: "Fender Stratocaster",
+        category: "Guitars",
+        detectedAttributes: {},
+        condition: "good",
+        confidence: "high",
+        rationale: [],
+        missingInfo: [],
+        flags: [],
+        estimatedMarketLow: 100,
+        estimatedMarketHigh: 200,
+        fulfillment: "shipping",
+      };
+
+      const plan = await brain.chooseMarketplace(analysisWithoutArchetype);
+      expect(plan.primary).toBeDefined();
+
+      const policy = await brain.buildPolicy(analysisWithoutArchetype, plan);
+      expect(policy.targetPrice).toBeGreaterThan(0);
+
+      const fulfillmentPlan = await brain.decideFulfillment({
+        ...baseItem,
+        analysis: analysisWithoutArchetype,
+      });
+      expect(fulfillmentPlan.mode).toBe("shipping");
+    });
+
+    it("should handle default fulfillment mode when intake override is auto or undefined", async () => {
+      const intakeAuto = { clue: "Fender guitar pedal", photos: [], fulfillmentOverride: "auto" as const };
+      const analysisAuto = await brain.analyzeItem(intakeAuto);
+      expect(analysisAuto.fulfillment).toBeDefined();
+
+      const intakeUndefined = { clue: "Fender guitar pedal", photos: [] };
+      const analysisUndefined = await brain.analyzeItem(intakeUndefined);
+      expect(analysisUndefined.fulfillment).toBeDefined();
+    });
+
+    it("should return fallback reply in handleBuyerMessage when all handlers return null", async () => {
+      const { buyerMessageHandlers } = require("../fixtureBrain");
+      const originalHandlers = [...buyerMessageHandlers];
+      buyerMessageHandlers.length = 0;
+
+      try {
+        const msg: BuyerMessage = {
+          itemId: "item-123",
+          buyerName: "Buyer",
+          text: "Custom query",
+          ts: Date.now(),
+        };
+        const reply = await brain.handleBuyerMessage(baseItem, msg);
+        expect(reply).toEqual({
+          decision: "answer",
+          reply: `Happy to answer anything. It's €${baseItem.policy.targetPrice}.`,
+          reason: "Fallback answer",
+          dealAgreed: false,
+        });
+      } finally {
+        buyerMessageHandlers.push(...originalHandlers);
+      }
+    });
+
+    it("should handle local-pickup and shipping mode fallbacks in decideFulfillment", async () => {
+      const shippingItem: Item = {
+        ...baseItem,
+        analysis: { ...baseItem.analysis, fulfillment: "shipping" },
+      };
+      const planShipping = await brain.decideFulfillment(shippingItem);
+      expect(planShipping.mode).toBe("shipping");
+      expect(planShipping.carrier).toBe("Correos");
+      expect(planShipping.labelCost).toBeLessThanOrEqual(baseItem.policy.maxFulfillmentSpend);
+
+      const localItem: Item = {
+        ...baseItem,
+        analysis: { ...baseItem.analysis, fulfillment: "local-pickup" },
+      };
+      const planLocal = await brain.decideFulfillment(localItem);
+      expect(planLocal.mode).toBe("local-pickup");
+      expect(planLocal.labelCost).toBe(0);
+      expect(planLocal.instruction).toContain("Meet the buyer at a safe public spot");
+    });
+  });
 });
