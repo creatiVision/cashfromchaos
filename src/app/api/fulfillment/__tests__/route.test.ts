@@ -67,6 +67,15 @@ describe("POST /api/fulfillment", () => {
       expect(json.error).toBe("Invalid JSON body");
     });
 
+    it("returns 400 Bad Request when req.json() throws an error", async () => {
+      const req = createRequest({});
+      jest.spyOn(req, "json").mockRejectedValueOnce(new Error("Stream error"));
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.error).toBe("Invalid JSON body");
+    });
+
     it("returns 400 Bad Request if itemId or action is missing", async () => {
       const req1 = createRequest({ itemId: "demo_pokemon" });
       const res1 = await POST(req1);
