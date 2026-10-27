@@ -250,17 +250,69 @@ describe("isTailscaleOrPrivate", () => {
 });
 
 describe("extractSafeProtocol", () => {
-  it("should return false when req.nextUrl is missing or undefined in extractSafeProtocol fallback", () => {
-    const dummyReq = {
+  it("should return http or https from valid x-forwarded-proto header", () => {
+    const reqHttp = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "http" },
+    });
+    expect(extractSafeProtocol(reqHttp)).toBe("http");
+
+    const reqHttps = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "https" },
+    });
+    expect(extractSafeProtocol(reqHttps)).toBe("https");
+  });
+
+  it("should normalize upper and mixed case x-forwarded-proto values to lowercase", () => {
+    const reqUpper = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "HTTPS" },
+    });
+    expect(extractSafeProtocol(reqUpper)).toBe("https");
+
+    const reqMixed = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "Http" },
+    });
+    expect(extractSafeProtocol(reqMixed)).toBe("http");
+  });
+
+  it("should fallback to req.nextUrl protocol when x-forwarded-proto header is absent", () => {
+    const reqHttps = new NextRequest("https://example.com");
+    expect(extractSafeProtocol(reqHttps)).toBe("https");
+
+    const reqHttp = new NextRequest("http://example.com");
+    expect(extractSafeProtocol(reqHttp)).toBe("http");
+  });
+
+  it("should default to https when x-forwarded-proto specifies untrusted or malicious protocols", () => {
+    const maliciousProtos = ["ftp", "file", "javascript", "gopher", "ws", "wss", "data"];
+    for (const proto of maliciousProtos) {
+      const req = new NextRequest("http://example.com", {
+        headers: { "x-forwarded-proto": proto },
+      });
+      expect(extractSafeProtocol(req)).toBe("https");
+    }
+  });
+
+  it("should default to http when req.nextUrl or req.nextUrl.protocol is missing or undefined", () => {
+    const dummyReqNoNextUrl = {
       headers: {
         get: () => null,
       },
       nextUrl: undefined,
     } as unknown as NextRequest;
-    expect(extractSafeProtocol(dummyReq)).toBe("http");
-  });
+    expect(extractSafeProtocol(dummyReqNoNextUrl)).toBe("http");
 
-  it("should return undefined when host header is missing in resolveTrustedOrigin", () => {
+    const dummyReqNoProtocol = {
+      headers: {
+        get: () => null,
+      },
+      nextUrl: {},
+    } as unknown as NextRequest;
+    expect(extractSafeProtocol(dummyReqNoProtocol)).toBe("http");
+  });
+});
+
+describe("resolveTrustedOrigin", () => {
+  it("should return undefined when host header is missing", () => {
     const dummyReq = {
       headers: {
         get: () => null,
@@ -268,33 +320,6 @@ describe("extractSafeProtocol", () => {
     } as unknown as NextRequest;
     expect(resolveTrustedOrigin(dummyReq)).toBeUndefined();
   });
-
-  it("should extract http or https from x-forwarded-proto header", () => {
-    const reqHttp = new NextRequest("http://example.com", {
-      headers: { "x-forwarded-proto": "http" },
-    });
-    expect(extractSafeProtocol(reqHttp)).toBe("http");
-
-    const reqHttps = new NextRequest("http://example.com", {
-      headers: { "x-forwarded-proto": "HTTPS" },
-    });
-    expect(extractSafeProtocol(reqHttps)).toBe("https");
-  });
-
-  it("should fallback to req.nextUrl protocol if header is absent", () => {
-    const req = new NextRequest("https://example.com");
-    expect(extractSafeProtocol(req)).toBe("https");
-  });
-
-  it("should default to https for unsupported protocols", () => {
-    const req = new NextRequest("http://example.com", {
-      headers: { "x-forwarded-proto": "ftp" },
-    });
-    expect(extractSafeProtocol(req)).toBe("https");
-  });
-});
-
-describe("resolveTrustedOrigin", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
