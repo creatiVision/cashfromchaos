@@ -29,9 +29,12 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
   });
 
   describe("Fallback to GENERIC_ARCHETYPE", () => {
-    it("should return GENERIC_ARCHETYPE when clue has no matching keywords", () => {
+    it("should return GENERIC_ARCHETYPE when clue has no matching keywords or is unknown nonsense", () => {
       expect(matchArchetype("Random mysterious artifact")).toEqual(GENERIC_ARCHETYPE);
       expect(matchArchetype("Unspecified item xyz 123")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("unknown clue")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("asdfghjklqwertyuiop")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("foobar baz qux nonsense string")).toEqual(GENERIC_ARCHETYPE);
       expect(matchArchetype("")).toEqual(GENERIC_ARCHETYPE);
     });
 
