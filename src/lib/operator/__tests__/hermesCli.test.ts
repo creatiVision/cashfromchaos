@@ -6,7 +6,7 @@ jest.mock('node:child_process', () => ({
 }));
 
 describe('getValidatedHermesBin', () => {
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -195,5 +195,73 @@ describe('runHermesJson', () => {
     } finally {
       process.env.HERMES_MODEL = originalModel;
     }
+  });
+});
+
+
+describe('runHermes', () => {
+  const mockedExecFile = childProcess.execFile as unknown as jest.Mock;
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env = { ...originalEnv };
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it('executes hermes CLI successfully and returns trimmed stdout', async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, '  Hello from Hermes!  \n', '');
+    });
+
+    const output = await runHermes('Hello');
+    expect(output).toBe('Hello from Hermes!');
+    expect(mockedExecFile).toHaveBeenCalledWith(
+      'hackathon',
+      ['-z', 'Hello'],
+      expect.objectContaining({
+        shell: false,
+        timeout: expect.any(Number),
+        maxBuffer: expect.any(Number),
+        encoding: 'utf8',
+      }),
+      expect.any(Function)
+    );
+  });
+
+  it('includes model argument when HERMES_MODEL is configured in environment', async () => {
+    process.env.HERMES_MODEL = 'gpt-4o';
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, 'Response', '');
+    });
+
+    await runHermes('Test prompt');
+    expect(mockedExecFile).toHaveBeenCalledWith(
+      'hackathon',
+      ['-z', 'Test prompt', '-m', 'gpt-4o'],
+      expect.any(Object),
+      expect.any(Function)
+    );
+  });
+
+  it('rejects with error message and stderr when CLI execution fails', async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(new Error('Command failed'), '', 'Segmentation fault');
+    });
+
+    await expect(runHermes('Fail')).rejects.toThrow(
+      'hermes CLI failed: Command failed Segmentation fault'
+    );
+  });
+
+  it('rejects when CLI produces no output or only whitespace', async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, '   \n  ', '');
+    });
+
+    await expect(runHermes('Empty')).rejects.toThrow('hermes CLI produced no output');
   });
 });
