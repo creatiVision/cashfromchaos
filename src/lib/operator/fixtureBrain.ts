@@ -86,6 +86,20 @@ function effectiveFulfillment(a: ReturnType<typeof matchArchetype>, intake?: Ite
   return !o || o === "auto" ? a.fulfillment : o;
 }
 
+/** Extract valid prior counter prices below target price from agent replies. */
+export function getPriorCounters(agentReplies: AgentReply[], targetPrice: number): number[] {
+  return agentReplies.reduce<number[]>((acc, r) => {
+    if (
+      r.decision === "counter" &&
+      typeof r.price === "number" &&
+      r.price < targetPrice
+    ) {
+      acc.push(r.price);
+    }
+    return acc;
+  }, []);
+}
+
 /** Context object encapsulating calculated negotiation state and item/message references. */
 export interface NegotiationContext {
   item: Item;
@@ -109,16 +123,7 @@ function getNegotiationContext(item: Item, message: BuyerMessage): NegotiationCo
   const text = message.text.toLowerCase();
   const offer = message.offer ?? parseOffer(message.text);
 
-  const priorCounters = item.agentReplies.reduce<number[]>((acc, r) => {
-    if (
-      r.decision === "counter" &&
-      typeof r.price === "number" &&
-      r.price < policy.targetPrice
-    ) {
-      acc.push(r.price);
-    }
-    return acc;
-  }, []);
+  const priorCounters = getPriorCounters(item.agentReplies, policy.targetPrice);
   const counterFloor = priorCounters.length ? Math.min(...priorCounters) : 0;
   const lastCounter = priorCounters.length ? priorCounters[priorCounters.length - 1] : undefined;
   const buyerOffers = item.messages.filter(
