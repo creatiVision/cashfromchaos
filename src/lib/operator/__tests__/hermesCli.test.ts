@@ -6,7 +6,7 @@ jest.mock('node:child_process', () => ({
 }));
 
 describe('getValidatedHermesBin', () => {
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -211,63 +211,72 @@ describe('runHermesJson', () => {
 });
 
 
-
-
-describe("runHermes", () => {
+describe('runHermes', () => {
   const mockedExecFile = childProcess.execFile as unknown as jest.Mock;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env = { ...originalEnv };
     delete process.env.HERMES_BIN;
     delete process.env.HERMES_MODEL;
   });
 
-  it("resolves with trimmed text when execFile succeeds", async () => {
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+
+  it('executes hermes CLI successfully and returns trimmed stdout', async () => {
     mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(null, "  Hello from Hermes!  \n", "");
+      callback(null, '  Hello from Hermes!  \n', '');
     });
 
-    const res = await runHermes("Say hello");
-    expect(res).toBe("Hello from Hermes!");
+    const output = await runHermes('Hello');
+    expect(output).toBe('Hello from Hermes!');
     expect(mockedExecFile).toHaveBeenCalledWith(
-      "hackathon",
-      ["-z", "Say hello"],
+      'hackathon',
+      ['-z', 'Hello'],
+      expect.objectContaining({
+        shell: false,
+        timeout: expect.any(Number),
+        maxBuffer: expect.any(Number),
+        encoding: 'utf8',
+      }),
+      expect.any(Function)
+    );
+  });
+
+  it('includes model argument when HERMES_MODEL is configured in environment', async () => {
+    process.env.HERMES_MODEL = 'gpt-4o';
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, 'Model response', '');
+    });
+
+    const res = await runHermes('Test prompt');
+    expect(res).toBe('Model response');
+    expect(mockedExecFile).toHaveBeenCalledWith(
+      'hackathon',
+      ['-z', 'Test prompt', '-m', 'gpt-4o'],
       expect.objectContaining({ shell: false }),
       expect.any(Function)
     );
   });
 
-  it("includes -m model flag when HERMES_MODEL environment variable is valid", async () => {
-    process.env.HERMES_MODEL = "gpt-4o";
+  it('rejects with error message and stderr when CLI execution fails', async () => {
     mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(null, "Model response", "");
+      callback(new Error('Command failed'), '', 'Segmentation fault');
     });
 
-    const res = await runHermes("Prompt");
-    expect(res).toBe("Model response");
-    expect(mockedExecFile).toHaveBeenCalledWith(
-      "hackathon",
-      ["-z", "Prompt", "-m", "gpt-4o"],
-      expect.objectContaining({ shell: false }),
-      expect.any(Function)
+    await expect(runHermes('Fail')).rejects.toThrow(
+      'hermes CLI failed: Command failed Segmentation fault'
     );
   });
 
-  it("rejects when execFile returns an execution error", async () => {
+  it('rejects when CLI produces no output or only whitespace', async () => {
     mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(new Error("Command failed: hermes -z test"), "", "Command not found");
+      callback(null, '   \n  ', '');
     });
 
-    await expect(runHermes("test")).rejects.toThrow(
-      "hermes CLI failed: Command failed: hermes -z test Command not found"
-    );
-  });
-
-  it("rejects when stdout is empty or whitespace-only", async () => {
-    mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(null, "   \n  ", "");
-    });
-
-    await expect(runHermes("test")).rejects.toThrow("hermes CLI produced no output");
+    await expect(runHermes('Empty')).rejects.toThrow('hermes CLI produced no output');
   });
 });
