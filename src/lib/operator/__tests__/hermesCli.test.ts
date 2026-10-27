@@ -83,6 +83,18 @@ describe('getValidatedHermesModel', () => {
     expect(() => getValidatedHermesModel('--version')).toThrow('model name cannot start with a hyphen');
   });
 
+  it('rejects path traversal attempts in model names', () => {
+    expect(() => getValidatedHermesModel('../etc/passwd')).toThrow('path traversal ("..") is not allowed');
+    expect(() => getValidatedHermesModel('model/../../secret')).toThrow('path traversal ("..") is not allowed');
+  });
+
+  it('rejects non-alphanumeric initial characters in model names', () => {
+    expect(() => getValidatedHermesModel('/etc/passwd')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('@org/model')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel(':model')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('.model')).toThrow('contains unsafe characters');
+  });
+
   it('rejects unsafe characters in model names', () => {
     expect(() => getValidatedHermesModel('model; id')).toThrow('contains unsafe characters');
     expect(() => getValidatedHermesModel('model | grep x')).toThrow('contains unsafe characters');

@@ -79,10 +79,13 @@ export function getValidatedHermesModel(model?: string): string | undefined {
   if (!model) return undefined;
   const trimmed = model.trim();
   if (!trimmed) return undefined;
+  if (trimmed.includes("..")) {
+    throw new Error(`Invalid HERMES_MODEL: path traversal ("..") is not allowed: ${model}`);
+  }
   if (trimmed.startsWith("-")) {
     throw new Error(`Invalid HERMES_MODEL: model name cannot start with a hyphen: ${model}`);
   }
-  const SAFE_MODEL_REGEX = /^[a-zA-Z0-9_.\-/:@]+$/;
+  const SAFE_MODEL_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_.\-/:@]*$/;
   if (!SAFE_MODEL_REGEX.test(trimmed)) {
     throw new Error(`Invalid HERMES_MODEL: contains unsafe characters: ${model}`);
   }
