@@ -21,12 +21,61 @@ describe("isValidHostFormat", () => {
     expect(isValidHostFormat("[2001:db8::1]:8080")).toBe(true);
   });
 
-  it("should return false for invalid host formats", () => {
-    expect(isValidHostFormat("user@host.com")).toBe(false);
-    expect(isValidHostFormat("host.com/path")).toBe(false);
-    expect(isValidHostFormat("host.com?query=1")).toBe(false);
-    expect(isValidHostFormat("host.com#hash")).toBe(false);
-    expect(isValidHostFormat("host.com\\bad")).toBe(false);
+  it("should return true for valid local host formats and edge cases", () => {
+    // Loopback IPv4 addresses and ports
+    expect(isValidHostFormat("127.0.0.1")).toBe(true);
+    expect(isValidHostFormat("127.0.0.1:8080")).toBe(true);
+    expect(isValidHostFormat("127.0.0.2:3000")).toBe(true);
+    expect(isValidHostFormat("127.0.0.1:80")).toBe(true);
+    expect(isValidHostFormat("127.0.0.1:65535")).toBe(true);
+
+    // Bracketed IPv6 loopback and local addresses
+    expect(isValidHostFormat("[::1]")).toBe(true);
+    expect(isValidHostFormat("[::1]:3000")).toBe(true);
+    expect(isValidHostFormat("[fe80::1]")).toBe(true);
+    expect(isValidHostFormat("[fe80::1]:8080")).toBe(true);
+
+    // Local hostnames, mDNS, internal TLDs, and Tailscale hosts
+    expect(isValidHostFormat("localhost")).toBe(true);
+    expect(isValidHostFormat("localhost:3000")).toBe(true);
+    expect(isValidHostFormat("localhost.localdomain")).toBe(true);
+    expect(isValidHostFormat("my-laptop.local")).toBe(true);
+    expect(isValidHostFormat("dev-server.internal")).toBe(true);
+    expect(isValidHostFormat("app.home.arpa:8443")).toBe(true);
+    expect(isValidHostFormat("my-node.ts.net")).toBe(true);
+    expect(isValidHostFormat("my-node.ts.net:3000")).toBe(true);
+
+    // Private IP ranges
+    expect(isValidHostFormat("10.0.0.1")).toBe(true);
+    expect(isValidHostFormat("10.0.0.1:8080")).toBe(true);
+    expect(isValidHostFormat("172.16.0.1:443")).toBe(true);
+    expect(isValidHostFormat("192.168.1.100:3000")).toBe(true);
+  });
+
+  it("should return false for invalid host formats and injection attempts on local hosts", () => {
+    // Unbracketed IPv6
+    expect(isValidHostFormat("::1")).toBe(false);
+    expect(isValidHostFormat("::1:3000")).toBe(false);
+
+    // Userinfo or path/query/fragment injection on local host
+    expect(isValidHostFormat("user@localhost")).toBe(false);
+    expect(isValidHostFormat("admin:password@127.0.0.1")).toBe(false);
+    expect(isValidHostFormat("localhost/api/v1")).toBe(false);
+    expect(isValidHostFormat("127.0.0.1?admin=true")).toBe(false);
+    expect(isValidHostFormat("localhost#section")).toBe(false);
+    expect(isValidHostFormat("localhost\\bad")).toBe(false);
+
+    // Malformed colons and ports
+    expect(isValidHostFormat("localhost:")).toBe(false);
+    expect(isValidHostFormat("127.0.0.1:")).toBe(false);
+    expect(isValidHostFormat("localhost:3000:8080")).toBe(false);
+    expect(isValidHostFormat("[::1]:3000:8080")).toBe(false);
+    expect(isValidHostFormat("localhost:abc")).toBe(false);
+
+    // Whitespace / special characters
+    expect(isValidHostFormat(" localhost")).toBe(false);
+    expect(isValidHostFormat("localhost ")).toBe(false);
+    expect(isValidHostFormat("127.0.0.1: 8080")).toBe(false);
     expect(isValidHostFormat("")).toBe(false);
   });
 });
