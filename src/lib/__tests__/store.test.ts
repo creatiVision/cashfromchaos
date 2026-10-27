@@ -111,6 +111,52 @@ describe("ensureSeeded & resetDemo", () => {
     saveItem(unSavedItem);
     expect(getItem("unsaved_123")).toBeDefined();
   });
+
+  it("is idempotent when called sequentially multiple times", async () => {
+    await ensureSeeded();
+    const countAfterFirst = listItems().length;
+    expect(countAfterFirst).toBe(3);
+
+    await ensureSeeded();
+    await ensureSeeded();
+    expect(listItems().length).toBe(countAfterFirst);
+  });
+
+  it("handles concurrent calls to ensureSeeded without duplicating items", async () => {
+    await resetDemo();
+    const promises = [ensureSeeded(), ensureSeeded(), ensureSeeded()];
+    await Promise.all(promises);
+    expect(listItems().length).toBe(3);
+  });
+
+  it("preserves custom items added to store when already seeded", async () => {
+    await ensureSeeded();
+    const customItem = await createItemFromIntake(
+      { clue: "Custom item after seed", photos: [] },
+      { id: "custom_after_seed", brain: new FixtureBrain() }
+    );
+    expect(getItem("custom_after_seed")).toBeDefined();
+
+    // Calling ensureSeeded again should be a no-op and preserve customItem
+    await ensureSeeded();
+    expect(getItem("custom_after_seed")).toBeDefined();
+    expect(listItems().length).toBe(4);
+  });
+
+  it("populates expected fields, listings, policies, and trace events for seeded items", async () => {
+    await ensureSeeded();
+    const items = listItems();
+    for (const item of items) {
+      expect(item.id).toBeTruthy();
+      expect(item.intake.clue).toBeTruthy();
+      expect(item.analysis.title).toBeTruthy();
+      expect(item.plan.primary.channelId).toBeTruthy();
+      expect(item.policy.targetPrice).toBeGreaterThan(0);
+      expect(item.listings.length).toBeGreaterThan(0);
+      expect(item.trace.length).toBeGreaterThan(0);
+    }
+  });
+
 });
 
 describe("getItem, saveItem, listItems, setStatus, trace", () => {
