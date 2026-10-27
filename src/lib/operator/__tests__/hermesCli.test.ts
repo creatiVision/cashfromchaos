@@ -197,3 +197,65 @@ describe('runHermesJson', () => {
     }
   });
 });
+
+
+
+
+describe("runHermes", () => {
+  const mockedExecFile = childProcess.execFile as unknown as jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.HERMES_BIN;
+    delete process.env.HERMES_MODEL;
+  });
+
+  it("resolves with trimmed text when execFile succeeds", async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, "  Hello from Hermes!  \n", "");
+    });
+
+    const res = await runHermes("Say hello");
+    expect(res).toBe("Hello from Hermes!");
+    expect(mockedExecFile).toHaveBeenCalledWith(
+      "hackathon",
+      ["-z", "Say hello"],
+      expect.objectContaining({ shell: false }),
+      expect.any(Function)
+    );
+  });
+
+  it("includes -m model flag when HERMES_MODEL environment variable is valid", async () => {
+    process.env.HERMES_MODEL = "gpt-4o";
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, "Model response", "");
+    });
+
+    const res = await runHermes("Prompt");
+    expect(res).toBe("Model response");
+    expect(mockedExecFile).toHaveBeenCalledWith(
+      "hackathon",
+      ["-z", "Prompt", "-m", "gpt-4o"],
+      expect.objectContaining({ shell: false }),
+      expect.any(Function)
+    );
+  });
+
+  it("rejects when execFile returns an execution error", async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(new Error("Command failed: hermes -z test"), "", "Command not found");
+    });
+
+    await expect(runHermes("test")).rejects.toThrow(
+      "hermes CLI failed: Command failed: hermes -z test Command not found"
+    );
+  });
+
+  it("rejects when stdout is empty or whitespace-only", async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, "   \n  ", "");
+    });
+
+    await expect(runHermes("test")).rejects.toThrow("hermes CLI produced no output");
+  });
+});
