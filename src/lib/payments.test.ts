@@ -183,6 +183,16 @@ describe('payments module', () => {
         { label: 'Marketplace fee (12.345%)', amount: -12.41, kind: 'fee' },
       ]);
     });
+
+    it('should delete existing netPayout property on the item', () => {
+      const item = mockItem(100, 'Direct', 0);
+      item.netPayout = 95;
+      expect(item.netPayout).toBe(95);
+
+      buildLedger(item);
+
+      expect(item.netPayout).toBeUndefined();
+    });
   });
 
   describe('netPayout', () => {
