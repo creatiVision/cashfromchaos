@@ -41,6 +41,33 @@ describe("isSafeRedirectUrl", () => {
         )
       ).toBe(true);
     });
+
+    it("handles invalid currentOrigin argument gracefully", () => {
+      expect(
+        isSafeRedirectUrl(
+          "https://checkout.stripe.com/pay/cs_test_12345",
+          "://invalid-origin"
+        )
+      ).toBe(true);
+
+      expect(
+        isSafeRedirectUrl(
+          "https://evil.com/phishing",
+          "://invalid-origin"
+        )
+      ).toBe(false);
+    });
+
+    it("handles invalid NEXT_PUBLIC_BASE_URL gracefully", () => {
+      process.env.NEXT_PUBLIC_BASE_URL = "http://:";
+      expect(
+        isSafeRedirectUrl("https://checkout.stripe.com/pay/cs_test_12345")
+      ).toBe(true);
+
+      expect(
+        isSafeRedirectUrl("https://evil.com/phishing")
+      ).toBe(false);
+    });
   });
 
   describe("trusted payment provider domains", () => {
@@ -90,6 +117,14 @@ describe("isSafeRedirectUrl", () => {
       expect(isSafeRedirectUrl(null as unknown as string)).toBe(false);
       expect(isSafeRedirectUrl(undefined as unknown as string)).toBe(false);
       expect(isSafeRedirectUrl("not a valid url")).toBe(false);
+    });
+
+    it("returns false for malformed URLs that cause URL constructor to throw", () => {
+      expect(isSafeRedirectUrl("://invalid-url")).toBe(false);
+      expect(isSafeRedirectUrl("http://:")).toBe(false);
+      expect(isSafeRedirectUrl("http://[invalid-ipv6]")).toBe(false);
+      expect(isSafeRedirectUrl("http://example.com:70000")).toBe(false);
+      expect(isSafeRedirectUrl("http://user:pass@")).toBe(false);
     });
   });
 });
