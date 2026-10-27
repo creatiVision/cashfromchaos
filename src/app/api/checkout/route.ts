@@ -44,7 +44,16 @@ export async function POST(req: NextRequest) {
   // Origin is strictly validated to prevent host header injection vulnerabilities.
   const origin = resolveTrustedOrigin(req);
 
-  const session = await createCheckout(item, origin);
+  let session: Awaited<ReturnType<typeof createCheckout>>;
+  try {
+    session = await createCheckout(item, origin);
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to create checkout session" },
+      { status: 500 }
+    );
+  }
+
   item.payment = {
     ...item.payment,
     provider: session.provider,

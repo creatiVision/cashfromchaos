@@ -2,6 +2,16 @@ import { NextRequest } from "next/server";
 import { getSafeOrigin } from "@/lib/origin";
 import { POST } from "./route";
 import { getItem, resetDemo, ensureSeeded } from "@/lib/store";
+import { createCheckout } from "@/lib/payments";
+
+jest.mock("@/lib/payments", () => {
+  const actual = jest.requireActual("@/lib/payments");
+  return {
+    ...actual,
+    createCheckout: jest.fn(actual.createCheckout),
+  };
+});
+
 
 describe("Host Header Injection Prevention (getSafeOrigin)", () => {
   const originalEnv = process.env;
@@ -253,5 +263,28 @@ describe("POST /api/checkout", () => {
     expect(updatedItem?.payment.sessionId).toMatch(/^sim_[0-9a-f-]+$/);
     expect(updatedItem?.payment.checkoutUrl).toBe(body.url);
     expect(updatedItem?.trace.some((t) => t.label.includes("Checkout created"))).toBe(true);
+  });
+
+  it("returns 500 Internal Server Error when createCheckout throws an error", async () => {
+    const item = getItem("demo_pokemon");
+    if (item) {
+      item.payment.amount = 45;
+    }
+    (createCheckout as jest.Mock).mockRejectedValueOnce(
+      new Error("Stripe SDK Error")
+    );
+
+    const req = new NextRequest("http://localhost:3000/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon" }),
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ error: "Failed to create checkout session" });
   });
 });
