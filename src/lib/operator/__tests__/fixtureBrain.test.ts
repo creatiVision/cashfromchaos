@@ -1,5 +1,27 @@
-import { FixtureBrain } from "../fixtureBrain";
-import type { Item, CommercePolicy, ItemAnalysis, MarketplacePlan, BuyerMessage } from "@/lib/types";
+import { FixtureBrain, getPriorCounters } from "../fixtureBrain";
+import type { Item, CommercePolicy, ItemAnalysis, MarketplacePlan, BuyerMessage, AgentReply } from "@/lib/types";
+
+describe("getPriorCounters helper function", () => {
+  it("should extract valid counter prices below target price", () => {
+    const replies: AgentReply[] = [
+      { decision: "counter", price: 140, reply: "140", reason: "", dealAgreed: false },
+      { decision: "counter", price: 130, reply: "130", reason: "", dealAgreed: false },
+      { decision: "counter", price: 150, reply: "150", reason: "", dealAgreed: false }, // not < targetPrice (150)
+      { decision: "answer", price: 120, reply: "120", reason: "", dealAgreed: false }, // decision !== "counter"
+      { decision: "counter", reply: "no price", reason: "", dealAgreed: false }, // no price
+    ];
+    const result = getPriorCounters(replies, 150);
+    expect(result).toEqual([140, 130]);
+  });
+
+  it("should return an empty array if no replies match counter conditions", () => {
+    const replies: AgentReply[] = [
+      { decision: "answer", price: 100, reply: "answer", reason: "", dealAgreed: false },
+    ];
+    const result = getPriorCounters(replies, 150);
+    expect(result).toEqual([]);
+  });
+});
 
 describe("FixtureBrain - handleBuyerMessage negotiation state machine", () => {
   let brain: FixtureBrain;

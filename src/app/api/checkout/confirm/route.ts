@@ -4,6 +4,7 @@ import { getOperator } from "@/lib/operator";
 import { buildLedger, stripeConfigured } from "@/lib/payments";
 import Stripe from "stripe";
 import { eur } from "@/lib/money";
+import { safeCompare } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
         { status: 403 }
       );
     }
-    if (!item.payment.sessionId || sessionId !== item.payment.sessionId) {
+    if (!item.payment.sessionId || !safeCompare(sessionId, item.payment.sessionId)) {
       return NextResponse.json({ error: "Invalid simulated session" }, { status: 400 });
     }
   }

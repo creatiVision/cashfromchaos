@@ -1,6 +1,16 @@
 import { NextRequest } from "next/server";
 import { POST } from "../route";
 import { ensureSeeded, getItem, resetDemo } from "@/lib/store";
+import { createCheckout } from "@/lib/payments";
+
+jest.mock("@/lib/payments", () => {
+  const actual = jest.requireActual("@/lib/payments");
+  return {
+    ...actual,
+    createCheckout: jest.fn(actual.createCheckout),
+  };
+});
+
 
 describe("POST /api/checkout", () => {
   const originalEnv = process.env;
@@ -148,6 +158,21 @@ describe("POST /api/checkout", () => {
       expect(json).toHaveProperty("url");
       expect(json).toHaveProperty("provider");
       expect(typeof json.url).toBe("string");
+    });
+    it("returns 500 Internal Server Error if createCheckout throws an exception", async () => {
+      const item = getItem("demo_pokemon");
+      if (item) {
+        item.payment.amount = 45;
+      }
+      (createCheckout as jest.Mock).mockRejectedValueOnce(
+        new Error("Stripe API connection failed")
+      );
+
+      const req = createRequest({ itemId: "demo_pokemon" });
+      const res = await POST(req);
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("Failed to create checkout session");
     });
   });
 });

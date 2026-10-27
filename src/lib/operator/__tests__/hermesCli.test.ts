@@ -83,6 +83,18 @@ describe('getValidatedHermesModel', () => {
     expect(() => getValidatedHermesModel('--version')).toThrow('model name cannot start with a hyphen');
   });
 
+  it('rejects path traversal attempts in model names', () => {
+    expect(() => getValidatedHermesModel('../etc/passwd')).toThrow('path traversal ("..") is not allowed');
+    expect(() => getValidatedHermesModel('model/../../secret')).toThrow('path traversal ("..") is not allowed');
+  });
+
+  it('rejects non-alphanumeric initial characters in model names', () => {
+    expect(() => getValidatedHermesModel('/etc/passwd')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('@org/model')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel(':model')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('.model')).toThrow('contains unsafe characters');
+  });
+
   it('rejects unsafe characters in model names', () => {
     expect(() => getValidatedHermesModel('model; id')).toThrow('contains unsafe characters');
     expect(() => getValidatedHermesModel('model | grep x')).toThrow('contains unsafe characters');
@@ -206,6 +218,8 @@ describe('runHermes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...originalEnv };
+    delete process.env.HERMES_BIN;
+    delete process.env.HERMES_MODEL;
   });
 
   afterAll(() => {
@@ -235,14 +249,15 @@ describe('runHermes', () => {
   it('includes model argument when HERMES_MODEL is configured in environment', async () => {
     process.env.HERMES_MODEL = 'gpt-4o';
     mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(null, 'Response', '');
+      callback(null, 'Model response', '');
     });
 
-    await runHermes('Test prompt');
+    const res = await runHermes('Test prompt');
+    expect(res).toBe('Model response');
     expect(mockedExecFile).toHaveBeenCalledWith(
       'hackathon',
       ['-z', 'Test prompt', '-m', 'gpt-4o'],
-      expect.any(Object),
+      expect.objectContaining({ shell: false }),
       expect.any(Function)
     );
   });

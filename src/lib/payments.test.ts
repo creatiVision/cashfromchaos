@@ -65,8 +65,11 @@ describe('payments module', () => {
       expect(stripeConfigured()).toBe(true);
     });
 
-    it('returns false when STRIPE_SECRET_KEY is missing', () => {
+    it('returns false when STRIPE_SECRET_KEY is missing or empty', () => {
       delete process.env.STRIPE_SECRET_KEY;
+      expect(stripeConfigured()).toBe(false);
+
+      process.env.STRIPE_SECRET_KEY = '';
       expect(stripeConfigured()).toBe(false);
     });
   });
@@ -78,13 +81,21 @@ describe('payments module', () => {
       expect(paypalConfigured()).toBe(true);
     });
 
-    it('returns false when PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET is missing', () => {
+    it('returns false when PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET is missing or empty', () => {
       delete process.env.PAYPAL_CLIENT_ID;
       process.env.PAYPAL_CLIENT_SECRET = 'client_secret';
       expect(paypalConfigured()).toBe(false);
 
       process.env.PAYPAL_CLIENT_ID = 'client_id';
       delete process.env.PAYPAL_CLIENT_SECRET;
+      expect(paypalConfigured()).toBe(false);
+
+      process.env.PAYPAL_CLIENT_ID = '';
+      process.env.PAYPAL_CLIENT_SECRET = 'client_secret';
+      expect(paypalConfigured()).toBe(false);
+
+      process.env.PAYPAL_CLIENT_ID = 'client_id';
+      process.env.PAYPAL_CLIENT_SECRET = '';
       expect(paypalConfigured()).toBe(false);
     });
   });
@@ -182,6 +193,16 @@ describe('payments module', () => {
         { label: 'Buyer payment (WeirdChannel)', amount: 100.55, kind: 'revenue' },
         { label: 'Marketplace fee (12.345%)', amount: -12.41, kind: 'fee' },
       ]);
+    });
+
+    it('should delete existing netPayout property on the item', () => {
+      const item = mockItem(100, 'Direct', 0);
+      item.netPayout = 95;
+      expect(item.netPayout).toBe(95);
+
+      buildLedger(item);
+
+      expect(item.netPayout).toBeUndefined();
     });
   });
 

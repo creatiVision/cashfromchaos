@@ -300,12 +300,19 @@ export const GENERIC_ARCHETYPE: Archetype = {
   image: "/img/generic.svg",
 };
 
+const archetypeCache = new Map<string, Archetype>();
+
 export function matchArchetype(clue: string): Archetype {
   const c = clue.toLowerCase();
+  const cached = archetypeCache.get(c);
+  if (cached) return cached;
+
   let best: { a: Archetype; score: number } | null = null;
   for (const a of ARCHETYPES) {
     const score = a.keywords.reduce((acc, k) => (c.includes(k) ? acc + k.length : acc), 0);
     if (score > 0 && (!best || score > best.score)) best = { a, score };
   }
-  return best ? best.a : GENERIC_ARCHETYPE;
+  const result = best ? best.a : GENERIC_ARCHETYPE;
+  archetypeCache.set(c, result);
+  return result;
 }
