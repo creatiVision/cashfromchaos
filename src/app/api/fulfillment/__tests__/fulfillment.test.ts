@@ -203,6 +203,44 @@ describe("POST /api/fulfillment input validation", () => {
     expect(body.error).toBe("Invalid JSON body");
   });
 
+  it("returns 400 when req.json() throws an error", async () => {
+    const req = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({ itemId: "demo_pokemon", action: "ship" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    jest.spyOn(req, "json").mockRejectedValueOnce(new Error("Stream error"));
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("Invalid JSON body");
+  });
+
+  it("returns 400 when body is null or empty object", async () => {
+    const reqNull = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: "null",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const resNull = await POST(reqNull);
+    expect(resNull.status).toBe(400);
+    const bodyNull = await resNull.json();
+    expect(bodyNull.error).toBe("Missing itemId or action");
+
+    const reqEmpty = new NextRequest("http://localhost:3000/api/fulfillment", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const resEmpty = await POST(reqEmpty);
+    expect(resEmpty.status).toBe(400);
+    const bodyEmpty = await resEmpty.json();
+    expect(bodyEmpty.error).toBe("Missing itemId or action");
+  });
+
   it("returns 400 when missing itemId or action", async () => {
     const req = new NextRequest("http://localhost:3000/api/fulfillment", {
       method: "POST",

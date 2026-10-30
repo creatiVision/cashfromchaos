@@ -76,6 +76,20 @@ describe("POST /api/fulfillment", () => {
       expect(json.error).toBe("Invalid JSON body");
     });
 
+    it("returns 400 Bad Request when req.json() resolves to null or empty object", async () => {
+      const reqNull = createRequest(null);
+      const resNull = await POST(reqNull);
+      expect(resNull.status).toBe(400);
+      const jsonNull = await resNull.json();
+      expect(jsonNull.error).toBe("Missing itemId or action");
+
+      const reqEmpty = createRequest({});
+      const resEmpty = await POST(reqEmpty);
+      expect(resEmpty.status).toBe(400);
+      const jsonEmpty = await resEmpty.json();
+      expect(jsonEmpty.error).toBe("Missing itemId or action");
+    });
+
     it("returns 400 Bad Request if itemId or action is missing", async () => {
       const req1 = createRequest({ itemId: "demo_pokemon" });
       const res1 = await POST(req1);
