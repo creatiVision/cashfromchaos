@@ -272,6 +272,16 @@ describe('runHermes', () => {
     );
   });
 
+  it('rejects with error message without trailing space when stderr is null or undefined', async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(new Error('Execution error'), '', null);
+    });
+
+    await expect(runHermes('Fail')).rejects.toThrow(
+      'hermes CLI failed: Execution error'
+    );
+  });
+
   it('rejects when CLI produces no output or only whitespace', async () => {
     mockedExecFile.mockImplementation((file, args, options, callback) => {
       callback(null, '   \n  ', '');
