@@ -279,4 +279,21 @@ describe('runHermes', () => {
 
     await expect(runHermes('Empty')).rejects.toThrow('hermes CLI produced no output');
   });
+  it('rejects with error message when CLI execution fails with undefined or null stderr', async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(new Error('Command failed'), '', null);
+    });
+
+    await expect(runHermes('Fail')).rejects.toThrow(
+      'hermes CLI failed: Command failed'
+    );
+  });
+
+  it('rejects when CLI stdout is null or undefined', async () => {
+    mockedExecFile.mockImplementation((file, args, options, callback) => {
+      callback(null, null, '');
+    });
+
+    await expect(runHermes('Null stdout')).rejects.toThrow('hermes CLI produced no output');
+  });
 });
