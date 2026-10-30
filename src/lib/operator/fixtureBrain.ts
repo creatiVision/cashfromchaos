@@ -100,6 +100,13 @@ export function getPriorCounters(agentReplies: AgentReply[], targetPrice: number
   }, []);
 }
 
+/** Count buyer messages that contain an explicit or parsable offer. */
+export function countBuyerOffers(messages: BuyerMessage[]): number {
+  return messages.filter(
+    (m) => (m.offer ?? parseOffer(m.text)) !== undefined
+  ).length;
+}
+
 /** Context object encapsulating calculated negotiation state and item/message references. */
 export interface NegotiationContext {
   item: Item;
@@ -126,9 +133,7 @@ function getNegotiationContext(item: Item, message: BuyerMessage): NegotiationCo
   const priorCounters = getPriorCounters(item.agentReplies, policy.targetPrice);
   const counterFloor = priorCounters.length ? Math.min(...priorCounters) : 0;
   const lastCounter = priorCounters.length ? priorCounters[priorCounters.length - 1] : undefined;
-  const buyerOffers = item.messages.filter(
-    (m) => (m.offer ?? parseOffer(m.text)) !== undefined
-  ).length;
+  const buyerOffers = countBuyerOffers(item.messages);
   const firm = buyerOffers >= 2;
   const tol = Math.max(2, Math.round(policy.targetPrice * 0.03));
   const standingAsk = lastCounter ?? policy.targetPrice;

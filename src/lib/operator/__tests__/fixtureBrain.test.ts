@@ -1,4 +1,4 @@
-import { FixtureBrain, getPriorCounters } from "../fixtureBrain";
+import { FixtureBrain, getPriorCounters, countBuyerOffers } from "../fixtureBrain";
 import type { Item, CommercePolicy, ItemAnalysis, MarketplacePlan, BuyerMessage, AgentReply } from "@/lib/types";
 
 describe("getPriorCounters helper function", () => {
@@ -22,6 +22,27 @@ describe("getPriorCounters helper function", () => {
     expect(result).toEqual([]);
   });
 });
+
+describe("countBuyerOffers helper function", () => {
+  it("should count messages with explicit offers or parsable offers in text", () => {
+    const messages: BuyerMessage[] = [
+      { itemId: "item-123", buyerName: "Buyer 1", text: "Is this available?", ts: 100 },
+      { itemId: "item-123", buyerName: "Buyer 2", text: "I offer 100", offer: 100, ts: 200 },
+      { itemId: "item-123", buyerName: "Buyer 3", text: "How about 120€?", ts: 300 }, // parseOffer("How about 120€?") -> 120
+      { itemId: "item-123", buyerName: "Buyer 4", text: "Hello", ts: 400 },
+    ];
+    const count = countBuyerOffers(messages);
+    expect(count).toBe(2);
+  });
+
+  it("should return 0 when no messages contain offers", () => {
+    const messages: BuyerMessage[] = [
+      { itemId: "item-123", buyerName: "Buyer 1", text: "Is this available?", ts: 100 },
+    ];
+    expect(countBuyerOffers(messages)).toBe(0);
+  });
+});
+
 
 describe("FixtureBrain - handleBuyerMessage negotiation state machine", () => {
   let brain: FixtureBrain;
