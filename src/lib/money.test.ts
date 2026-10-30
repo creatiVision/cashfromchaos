@@ -110,20 +110,30 @@ describe("parseOffer", () => {
     expect(parseOffer("50€")).toBe(50);
     expect(parseOffer("€50")).toBe(50);
     expect(parseOffer("50 euros")).toBe(50);
+    expect(parseOffer("50eur")).toBe(50);
   });
 
   it("parses decimal amounts with dot or comma", () => {
     expect(parseOffer("50.5")).toBe(50.5);
     expect(parseOffer("75,50")).toBe(75.5);
+    expect(parseOffer("0,99 €")).toBe(0.99);
   });
 
   it("handles thousands separators", () => {
     expect(parseOffer("1.200")).toBe(1200);
     expect(parseOffer("1.200€")).toBe(1200);
+    expect(parseOffer("1.200,50")).toBe(1200.5);
   });
 
-  it("returns undefined for text without numeric offers", () => {
+  it("handles non-breaking spaces and whitespace variations", () => {
+    expect(parseOffer("50\u00a0€")).toBe(50);
+    expect(parseOffer("  € 100  ")).toBe(100);
+  });
+
+  it("returns undefined for text without numeric offers or non-finite results", () => {
     expect(parseOffer("hello world")).toBeUndefined();
     expect(parseOffer("no price here")).toBeUndefined();
+    expect(parseOffer("€")).toBeUndefined();
+    expect(parseOffer("1" + "0".repeat(309))).toBeUndefined();
   });
 });
