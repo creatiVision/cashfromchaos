@@ -341,6 +341,49 @@ describe("extractSafeProtocol", () => {
     }
   });
 
+  it("should default to https when x-forwarded-proto header is empty string", () => {
+    const req = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "" },
+    });
+    expect(extractSafeProtocol(req)).toBe("https");
+  });
+
+  it("should handle whitespace around x-forwarded-proto header or comma-separated proxies", () => {
+    const reqPadded = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "  https  " },
+    });
+    expect(extractSafeProtocol(reqPadded)).toBe("https");
+
+    const reqComma = new NextRequest("http://example.com", {
+      headers: { "x-forwarded-proto": "https, http" },
+    });
+    expect(extractSafeProtocol(reqComma)).toBe("https");
+  });
+
+  it("should default to https when req.nextUrl.protocol specifies an untrusted protocol", () => {
+    const dummyReqUntrustedNextUrl = {
+      headers: {
+        get: () => null,
+      },
+      nextUrl: {
+        protocol: "ftp:",
+      },
+    } as unknown as NextRequest;
+    expect(extractSafeProtocol(dummyReqUntrustedNextUrl)).toBe("https");
+  });
+
+  it("should strip trailing colon from req.nextUrl.protocol when present", () => {
+    const dummyReqColon = {
+      headers: {
+        get: () => null,
+      },
+      nextUrl: {
+        protocol: "http:",
+      },
+    } as unknown as NextRequest;
+    expect(extractSafeProtocol(dummyReqColon)).toBe("http");
+  });
+
   it("should default to http when req.nextUrl or req.nextUrl.protocol is missing or undefined", () => {
     const dummyReqNoNextUrl = {
       headers: {
