@@ -102,6 +102,22 @@ describe("niceRound", () => {
     expect(niceRound(73.75)).toBe(75);
     expect(niceRound(110.72)).toBe(110);
   });
+
+  it("handles large numbers (hundreds, thousands, millions, billions) and snaps to nearest 5", () => {
+    expect(niceRound(500)).toBe(500);
+    expect(niceRound(1000)).toBe(1000);
+    expect(niceRound(2500)).toBe(2500);
+    expect(niceRound(2502.49)).toBe(2500);
+    expect(niceRound(2502.5)).toBe(2505);
+    expect(niceRound(10000)).toBe(10000);
+    expect(niceRound(10002.49)).toBe(10000);
+    expect(niceRound(10002.5)).toBe(10005);
+    expect(niceRound(50000)).toBe(50000);
+    expect(niceRound(100000)).toBe(100000);
+    expect(niceRound(1000000)).toBe(1000000);
+    expect(niceRound(1234567.89)).toBe(1234570);
+    expect(niceRound(1000000000)).toBe(1000000000);
+  });
 });
 
 describe("parseOffer", () => {
