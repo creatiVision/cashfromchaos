@@ -17,7 +17,7 @@ export interface ListingResult {
 export interface MarketplaceAdapter {
   id: string;
   name: string;
-  kind: "shipping" | "local" | "collector" | "generalist";
+  kind: "shipping" | "local" | "collector" | "generalist" | "direct-buyer";
   feePct: number;
   shippingFriendly: boolean;
   /** Market region this channel serves — used for DE/DACH routing preference. */
@@ -140,6 +140,16 @@ export const ADAPTERS: Record<string, MarketplaceAdapter> = {
     region: "de",
     blurb: "Germany's leading C2C classifieds platform - strong local demand plus optional shipping.",
     strengths: ["general", "electronics", "furniture", "kids", "home", "fashion", "bulky"],
+  }),
+  "asgoodasnew-mock": mockAdapter({
+    id: "asgoodasnew-mock",
+    name: "asgoodasnew / WIRKAUFENS (Direct C2B)",
+    kind: "direct-buyer",
+    feePct: 0,
+    shippingFriendly: true,
+    region: "de",
+    blurb: "Direct C2B buyout portal — instant fixed price offer, free shipping, no photos/negotiation needed.",
+    strengths: ["electronics", "wearables", "smartwatch", "phone", "iphone", "apple", "samsung", "tech", "laptop", "tablet"],
   }),
 };
 

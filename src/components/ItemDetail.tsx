@@ -245,6 +245,9 @@ function MarketplaceTab({ item }: { item: Item }) {
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{c.name}</span>
                   {i === 0 && <span className="chip border-cash/40 text-cash">primary</span>}
+                  {c.channelId === "asgoodasnew-mock" && (
+                    <span className="chip border-gold/40 text-gold">C2B Instant Buyout</span>
+                  )}
                 </div>
                 <p className="text-xs text-muted">{c.reason}</p>
               </div>

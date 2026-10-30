@@ -14,7 +14,7 @@ describe("Marketplace Registry", () => {
         expect(typeof adapter.id).toBe("string");
         expect(adapter.id.length).toBeGreaterThan(0);
         expect(typeof adapter.name).toBe("string");
-        expect(["shipping", "local", "collector", "generalist"]).toContain(adapter.kind);
+        expect(["shipping", "local", "collector", "generalist", "direct-buyer"]).toContain(adapter.kind);
         expect(typeof adapter.feePct).toBe("number");
         expect(adapter.feePct).toBeGreaterThanOrEqual(0);
         expect(typeof adapter.shippingFriendly).toBe("boolean");
@@ -24,6 +24,25 @@ describe("Marketplace Registry", () => {
         expect(typeof adapter.supportsCategory).toBe("function");
         expect(typeof adapter.createListing).toBe("function");
       });
+    });
+  });
+
+  describe("asgoodasnew-mock Direct Buyer Adapter", () => {
+    it("should be registered with direct-buyer kind and 0% fee", () => {
+      const adapter = getAdapter("asgoodasnew-mock");
+      expect(adapter).toBeDefined();
+      expect(adapter?.kind).toBe("direct-buyer");
+      expect(adapter?.feePct).toBe(0);
+      expect(adapter?.region).toBe("de");
+      expect(adapter?.shippingFriendly).toBe(true);
+    });
+
+    it("should support consumer electronics and smartwatch categories", () => {
+      const adapter = getAdapter("asgoodasnew-mock")!;
+      expect(adapter.supportsCategory("electronics")).toBe(true);
+      expect(adapter.supportsCategory("smartwatch")).toBe(true);
+      expect(adapter.supportsCategory("wearables")).toBe(true);
+      expect(adapter.supportsCategory("phone")).toBe(true);
     });
   });
 
@@ -71,6 +90,7 @@ describe("Marketplace Registry", () => {
       const ids = deAdapters.map((a) => a.id);
       expect(ids).toContain("ebay-de-mock");
       expect(ids).toContain("kleinanzeigen-mock");
+      expect(ids).toContain("asgoodasnew-mock");
     });
 
     it("should return only adapters serving the 'eu' region", () => {
