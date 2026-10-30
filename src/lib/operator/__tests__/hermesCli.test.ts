@@ -95,6 +95,14 @@ describe('getValidatedHermesModel', () => {
     expect(() => getValidatedHermesModel('.model')).toThrow('contains unsafe characters');
   });
 
+  it('rejects model names with trailing, leading, or consecutive delimiters or flag-like subsegments', () => {
+    expect(() => getValidatedHermesModel('org//model')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('org/model/')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('org/model:')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('org/@model')).toThrow('contains unsafe characters');
+    expect(() => getValidatedHermesModel('org/-flag')).toThrow('contains unsafe characters');
+  });
+
   it('rejects unsafe characters in model names', () => {
     expect(() => getValidatedHermesModel('model; id')).toThrow('contains unsafe characters');
     expect(() => getValidatedHermesModel('model | grep x')).toThrow('contains unsafe characters');
