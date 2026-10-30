@@ -30,18 +30,27 @@ describe("matchArchetype - Keyword Scoring and Archetype Matching", () => {
 
   describe("Fallback to GENERIC_ARCHETYPE", () => {
     it("should return GENERIC_ARCHETYPE when clue has no matching keywords or is unknown nonsense", () => {
-      expect(matchArchetype("Random mysterious artifact")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("Unspecified item xyz 123")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("unknown clue")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("asdfghjklqwertyuiop")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("foobar baz qux nonsense string")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("Random mysterious artifact")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("Unspecified item xyz 123")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("unknown clue")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("asdfghjklqwertyuiop")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("foobar baz qux nonsense string")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("")).toBe(GENERIC_ARCHETYPE);
     });
 
     it("should return GENERIC_ARCHETYPE for whitespace-only strings or special punctuation", () => {
-      expect(matchArchetype("   \n\t  ")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("!!! ??? @#$%^&*()")).toEqual(GENERIC_ARCHETYPE);
-      expect(matchArchetype("1234567890")).toEqual(GENERIC_ARCHETYPE);
+      expect(matchArchetype("   \n\t  ")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("!!! ??? @#$%^&*()")).toBe(GENERIC_ARCHETYPE);
+      expect(matchArchetype("1234567890")).toBe(GENERIC_ARCHETYPE);
+    });
+
+    it("should cache and consistently return GENERIC_ARCHETYPE on repeated queries with unknown clues", () => {
+      const unknownClue = "unknown clue 123 nonsense";
+      const firstResult = matchArchetype(unknownClue);
+      const secondResult = matchArchetype(unknownClue);
+      expect(firstResult).toBe(GENERIC_ARCHETYPE);
+      expect(secondResult).toBe(GENERIC_ARCHETYPE);
+      expect(firstResult).toBe(secondResult);
     });
   });
 
