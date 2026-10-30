@@ -34,14 +34,34 @@ describe("Marketplace Registry", () => {
       expect(adapters).toEqual(expectedAdapters);
       expect(adapters.length).toBeGreaterThan(0);
     });
+
+    it("should return an array containing every adapter key present in ADAPTERS dictionary", () => {
+      const adapters = allAdapters();
+      const registeredKeys = Object.keys(ADAPTERS);
+
+      expect(adapters.length).toBe(registeredKeys.length);
+      registeredKeys.forEach((key) => {
+        expect(adapters.some((adapter) => adapter.id === key)).toBe(true);
+      });
+    });
+
+    it("should return identical references as stored in ADAPTERS", () => {
+      const adapters = allAdapters();
+      Object.entries(ADAPTERS).forEach(([key, adapter]) => {
+        const found = adapters.find((a) => a.id === key);
+        expect(found).toBe(adapter);
+      });
+    });
   });
 
   describe("getAdapter", () => {
-    it("should return the adapter corresponding to a valid ID", () => {
-      const adapter = getAdapter("ebay-de-mock");
-      expect(adapter).toBeDefined();
-      expect(adapter?.id).toBe("ebay-de-mock");
-      expect(adapter?.name).toBe("eBay Germany (DE)");
+    it("should return the correct adapter corresponding to every valid registered ID", () => {
+      Object.keys(ADAPTERS).forEach((id) => {
+        const adapter = getAdapter(id);
+        expect(adapter).toBeDefined();
+        expect(adapter?.id).toBe(id);
+        expect(adapter).toBe(ADAPTERS[id]);
+      });
     });
 
     it("should return undefined for an unknown adapter ID", () => {
@@ -54,9 +74,23 @@ describe("Marketplace Registry", () => {
       expect(adapter).toBeUndefined();
     });
 
+    it("should return undefined for an ID containing leading or trailing whitespace", () => {
+      expect(getAdapter(" ebay-de-mock")).toBeUndefined();
+      expect(getAdapter("ebay-de-mock ")).toBeUndefined();
+      expect(getAdapter(" ebay-de-mock ")).toBeUndefined();
+      expect(getAdapter(" ")).toBeUndefined();
+    });
+
     it("should return undefined for case mismatch in ID", () => {
       const adapter = getAdapter("EBAY-DE-MOCK");
       expect(adapter).toBeUndefined();
+    });
+
+    it("should return undefined when looking up JS built-in object properties", () => {
+      expect(getAdapter("toString")).toBeUndefined();
+      expect(getAdapter("valueOf")).toBeUndefined();
+      expect(getAdapter("hasOwnProperty")).toBeUndefined();
+      expect(getAdapter("__proto__")).toBeUndefined();
     });
   });
 
