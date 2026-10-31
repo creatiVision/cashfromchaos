@@ -20,7 +20,7 @@ import type {
   OperatorBrain,
 } from "@/lib/types";
 import { getAdapter } from "@/lib/marketplace/registry";
-import { matchArchetype } from "@/lib/operator/archetypes";
+import { matchArchetype, type Archetype } from "@/lib/operator/archetypes";
 
 // Pre-compiled RegExp patterns for condition refinement & buyer message handling
 const FAULTY_CONDITION_PATTERN = /(faulty|not work|broken|for parts)/;
@@ -342,6 +342,19 @@ export const buyerMessageHandlers: BuyerMessageHandler[] = [
 export class FixtureBrain implements OperatorBrain {
   readonly name: string = "fixture";
 
+  private getArchetype(analysis: ItemAnalysis): Archetype {
+    if (analysis.matchedArchetype) {
+      return analysis.matchedArchetype;
+    }
+    const matched = matchArchetype(analysis.title + " " + analysis.category);
+    try {
+      analysis.matchedArchetype = matched;
+    } catch {
+      // Ignored if analysis object is frozen
+    }
+    return matched;
+  }
+
   async analyzeItem(input: ItemIntake): Promise<ItemAnalysis> {
     const a = matchArchetype(input.clue + " " + (input.notes ?? ""));
     const { low, high, notes } = refineWithAnswers(a, input);
@@ -373,7 +386,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async chooseMarketplace(input: ItemAnalysis): Promise<MarketplacePlan> {
-    const a = input.matchedArchetype ?? matchArchetype(input.title + " " + input.category);
+    const a = this.getArchetype(input);
     const eff = input.fulfillment ?? a.fulfillment;
     // Rank compatible channels first; keep the rest as fallbacks.
     const fits = (id: string) => {
@@ -405,7 +418,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async buildPolicy(analysis: ItemAnalysis, plan: MarketplacePlan): Promise<CommercePolicy> {
-    const a = analysis.matchedArchetype ?? matchArchetype(analysis.title + " " + analysis.category);
+    const a = this.getArchetype(analysis);
     const mid = (analysis.estimatedMarketLow + analysis.estimatedMarketHigh) / 2;
     // Natural-looking prices (e.g. €120 / €75 / €55) instead of €119.6 / €73.75.
     const target = niceRound(analysis.estimatedMarketHigh * 0.92);
@@ -476,7 +489,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async decideFulfillment(item: Item): Promise<FulfillmentPlan> {
-    const a = item.analysis.matchedArchetype ?? matchArchetype(item.analysis.title + " " + item.analysis.category);
+    const a = this.getArchetype(item.analysis);
     const eff = item.analysis.fulfillment ?? a.fulfillment;
     if (eff === "local-pickup") {
       return {
