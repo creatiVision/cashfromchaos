@@ -151,7 +151,7 @@ export const ARCHETYPES: Archetype[] = [
     flags: ["condition-sensitive", "data-wipe-recommended"],
     marketLow: 55,
     marketHigh: 130,
-    channels: ["wallapop-mock", "paypal-mock", "ebay-de-mock", "ebay-mock"],
+    channels: ["asgoodasnew-mock", "kleinanzeigen-mock", "ebay-de-mock", "wallapop-mock", "paypal-mock", "ebay-mock"],
     bundleRecommended: false,
     strategy: [
       "Generalist marketplace first; PayPal/eBay-DE as fallback, then global channel for premium/rare models.",
@@ -282,7 +282,7 @@ export const GENERIC_ARCHETYPE: Archetype = {
   flags: [],
   marketLow: 20,
   marketHigh: 60,
-  channels: ["wallapop-mock", "kleinanzeigen-mock", "paypal-mock", "ebay-de-mock", "ebay-mock", "cashfromchaos-sandbox"],
+  channels: ["asgoodasnew-mock", "kleinanzeigen-mock", "ebay-de-mock", "wallapop-mock", "paypal-mock", "ebay-mock", "cashfromchaos-sandbox"],
   bundleRecommended: false,
   strategy: [
     "Generalist marketplace first; Kleinanzeigen/eBay-DE as fallback if demand is thin, eBay-style global for rare items.",
