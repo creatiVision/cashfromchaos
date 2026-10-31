@@ -129,6 +129,16 @@ describe("ensureSeeded & resetDemo", () => {
     expect(listItems().length).toBe(3);
   });
 
+  it("returns immediately without seeding if seeded flag is already true", async () => {
+    await ensureSeeded();
+    expect(listItems().length).toBe(3);
+
+    // Call ensureSeeded again - should resolve immediately and perform no action
+    const res = await ensureSeeded();
+    expect(res).toBeUndefined();
+    expect(listItems().length).toBe(3);
+  });
+
   it("preserves custom items added to store when already seeded", async () => {
     await ensureSeeded();
     const customItem = await createItemFromIntake(
