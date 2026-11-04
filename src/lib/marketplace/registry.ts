@@ -153,15 +153,29 @@ export const ADAPTERS: Record<string, MarketplaceAdapter> = {
   }),
 };
 
+// Precompute and freeze static lists once at module evaluation to avoid
+// repetitive Object.values() allocations and O(N) array filtering on hot paths.
+const ALL_ADAPTERS: readonly MarketplaceAdapter[] = Object.freeze(Object.values(ADAPTERS));
+
+const ADAPTERS_BY_REGION: Record<"de" | "eu" | "global", readonly MarketplaceAdapter[]> = Object.freeze({
+  de: Object.freeze(ALL_ADAPTERS.filter((a) => a.region === "de")),
+  eu: Object.freeze(ALL_ADAPTERS.filter((a) => a.region === "eu")),
+  global: Object.freeze(ALL_ADAPTERS.filter((a) => a.region === "global")),
+});
+
 export function getAdapter(id: string): MarketplaceAdapter | undefined {
-  return ADAPTERS[id];
+  // Use Object.hasOwn to prevent accessing Object.prototype built-in properties
+  // and guarantee safe, direct O(1) dictionary lookup.
+  return Object.hasOwn(ADAPTERS, id) ? ADAPTERS[id] : undefined;
 }
 
 export function allAdapters(): MarketplaceAdapter[] {
-  return Object.values(ADAPTERS);
+  // Return precomputed adapters list; cast to MarketplaceAdapter[] to maintain
+  // exact backwards-compatible return signature without reallocating arrays.
+  return ALL_ADAPTERS as MarketplaceAdapter[];
 }
 
-/** Adapters serving exactly the given market region. */
+/** Adapters serving exactly the given market region with precomputed O(1) lookup. */
 export function adaptersByRegion(region: "de" | "eu" | "global"): MarketplaceAdapter[] {
-  return allAdapters().filter((a) => a.region === region);
+  return (ADAPTERS_BY_REGION[region] ?? []) as MarketplaceAdapter[];
 }
