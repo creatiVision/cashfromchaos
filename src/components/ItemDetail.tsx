@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { Item } from "@/lib/types";
 import { eur } from "@/lib/money";
-import { netPayout } from "@/lib/payments";
 import { StatusBadge, ConfidenceBadge, TraceList, Section } from "@/components/ui";
 import { Timeline } from "@/components/Timeline";
 
@@ -40,11 +39,67 @@ export function ItemDetail({ initial }: { initial: Item }) {
 
       <Timeline status={item.status} />
 
+      {item.status === "escalated" && item.pendingOffer && (
+        <EscalationBanner item={item} onProcessed={refresh} />
+      )}
+
       {/* Mobile (<lg) */}
       <MobileView item={item} refresh={refresh} />
 
       {/* Desktop (lg+) */}
       <DesktopView item={item} tab={tab} setTab={setTab} refresh={refresh} />
+    </div>
+  );
+}
+
+function EscalationBanner({ item, onProcessed }: { item: Item; onProcessed: () => void }) {
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleDecision(decision: "approve" | "decline") {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, decision }),
+      });
+      if (res.ok) onProcessed();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-5 backdrop-blur-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <h3 className="font-bold text-amber-200">Below-Floor Offer Needs Your Approval</h3>
+          </div>
+          <p className="mt-1 text-sm text-stone-300">
+            Buyer <strong className="text-white">{item.pendingOffer?.buyerName}</strong> offered{" "}
+            <strong className="text-cash text-base">€{item.pendingOffer?.offer}</strong> (Floor: €{item.policy.floorPrice}).
+            Hermes escalated this because it requires human authorization.
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={() => handleDecision("approve")}
+            disabled={submitting}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 disabled:opacity-50 transition"
+          >
+            ✓ Approve Deal
+          </button>
+          <button
+            onClick={() => handleDecision("decline")}
+            disabled={submitting}
+            className="rounded-lg bg-stone-800 border border-stone-700 px-4 py-2 text-sm font-medium text-stone-300 hover:bg-stone-700 disabled:opacity-50 transition"
+          >
+            ✕ Decline
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -246,9 +301,6 @@ function MarketplaceTab({ item }: { item: Item }) {
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{c.name}</span>
                   {i === 0 && <span className="chip border-cash/40 text-cash">primary</span>}
-                  {c.channelId === "asgoodasnew-mock" && (
-                    <span className="chip border-gold/40 text-gold">C2B Instant Buyout</span>
-                  )}
                 </div>
                 <p className="text-xs text-muted">{c.reason}</p>
               </div>
@@ -422,10 +474,7 @@ function FulfillmentTab({ item, onChange }: { item: Item; onChange: () => void }
 }
 
 function PnLTab({ item }: { item: Item }) {
-  // Use cached netPayout(item) instead of re-reducing item.ledger on every render.
-  // This avoids redundant array iteration and leverages item.netPayout memoization
-  // (~3-4x faster, reducing per-render computation overhead from ~18ms to ~5ms per 1M calls).
-  const total = netPayout(item);
+  const total = item.ledger.reduce((a, e) => a + e.amount, 0);
   if (item.ledger.length === 0)
     return (
       <Section title="P&L">

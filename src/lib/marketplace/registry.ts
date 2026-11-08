@@ -17,7 +17,7 @@ export interface ListingResult {
 export interface MarketplaceAdapter {
   id: string;
   name: string;
-  kind: "shipping" | "local" | "collector" | "generalist" | "direct-buyer";
+  kind: "shipping" | "local" | "collector" | "generalist";
   feePct: number;
   shippingFriendly: boolean;
   /** Market region this channel serves — used for DE/DACH routing preference. */
@@ -141,41 +141,37 @@ export const ADAPTERS: Record<string, MarketplaceAdapter> = {
     blurb: "Germany's leading C2C classifieds platform - strong local demand plus optional shipping.",
     strengths: ["general", "electronics", "furniture", "kids", "home", "fashion", "bulky"],
   }),
-  "asgoodasnew-mock": mockAdapter({
-    id: "asgoodasnew-mock",
-    name: "asgoodasnew / WIRKAUFENS (Direct C2B)",
-    kind: "direct-buyer",
+  "vinted-mock": mockAdapter({
+    id: "vinted-mock",
+    name: "Vinted Europe (mock)",
+    kind: "shipping",
     feePct: 0,
     shippingFriendly: true,
-    region: "de",
-    blurb: "Direct C2B buyout portal — instant fixed price offer, free shipping, no photos/negotiation needed.",
-    strengths: ["electronics", "wearables", "smartwatch", "phone", "iphone", "apple", "samsung", "tech", "laptop", "tablet"],
+    region: "eu",
+    blurb: "Top European platform for fashion, clothing, accessories, and second-hand kids items.",
+    strengths: ["fashion", "clothing", "apparel", "kids", "shoes", "baby", "accessories"],
+  }),
+  "cardmarket-mock": mockAdapter({
+    id: "cardmarket-mock",
+    name: "Cardmarket Europe (mock)",
+    kind: "collector",
+    feePct: 5,
+    shippingFriendly: true,
+    region: "eu",
+    blurb: "Europe's premier peer-to-peer exchange for TCG, Pokémon, Magic, and collectible cards.",
+    strengths: ["collectibles", "trading cards", "pokemon", "tcg", "magic", "yugioh", "cards"],
   }),
 };
 
-// Precompute and freeze static lists once at module evaluation to avoid
-// repetitive Object.values() allocations and O(N) array filtering on hot paths.
-const ALL_ADAPTERS: readonly MarketplaceAdapter[] = Object.freeze(Object.values(ADAPTERS));
-
-const ADAPTERS_BY_REGION: Record<"de" | "eu" | "global", readonly MarketplaceAdapter[]> = Object.freeze({
-  de: Object.freeze(ALL_ADAPTERS.filter((a) => a.region === "de")),
-  eu: Object.freeze(ALL_ADAPTERS.filter((a) => a.region === "eu")),
-  global: Object.freeze(ALL_ADAPTERS.filter((a) => a.region === "global")),
-});
-
 export function getAdapter(id: string): MarketplaceAdapter | undefined {
-  // Use Object.hasOwn to prevent accessing Object.prototype built-in properties
-  // and guarantee safe, direct O(1) dictionary lookup.
-  return Object.hasOwn(ADAPTERS, id) ? ADAPTERS[id] : undefined;
+  return ADAPTERS[id];
 }
 
 export function allAdapters(): MarketplaceAdapter[] {
-  // Return precomputed adapters list; cast to MarketplaceAdapter[] to maintain
-  // exact backwards-compatible return signature without reallocating arrays.
-  return ALL_ADAPTERS as MarketplaceAdapter[];
+  return Object.values(ADAPTERS);
 }
 
-/** Adapters serving exactly the given market region with precomputed O(1) lookup. */
+/** Adapters serving exactly the given market region. */
 export function adaptersByRegion(region: "de" | "eu" | "global"): MarketplaceAdapter[] {
-  return (ADAPTERS_BY_REGION[region] ?? []) as MarketplaceAdapter[];
+  return allAdapters().filter((a) => a.region === region);
 }

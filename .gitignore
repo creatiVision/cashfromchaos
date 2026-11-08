@@ -20,3 +20,7 @@ ARCHITECTURE_DECISION.md
 # Graphify knowledge graph (synced via Syncthing, never committed)
 graphify-out/
 graphify-out.*
+
+.kimi-code/
+*.tsbuildinfo
+

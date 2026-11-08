@@ -34,19 +34,20 @@ import type {
 import { FixtureBrain } from "@/lib/operator/fixtureBrain";
 import { runHermes, runHermesJson } from "@/lib/operator/hermesCli";
 
+import { analyzeItemVision } from "@/lib/operator/vision";
+
 export class HermesBrain extends FixtureBrain {
   readonly name = "hermes";
 
   /**
    * Analysis stays policy-bound: category, price band, confidence, flags and
-   * the critical questions all come from the deterministic archetype logic
-   * (super). Hermes only does what an LLM is genuinely good at — turn the
-   * seller's raw clue + photo context into a clean marketplace TITLE and a
-   * short DESCRIPTION of the actual item. One CLI call; any failure falls back
-   * to the deterministic title and no description (the fixture body is used).
+   * the critical questions can come from multimodal vision analysis or deterministic archetype logic.
+   * Hermes then refines the title, description, and selling points.
    */
   async analyzeItem(input: ItemIntake): Promise<ItemAnalysis> {
-    const base = await super.analyzeItem(input);
+    const vision = await analyzeItemVision(input.photos, input.clue, input.notes);
+    const base = vision ? { ...((await super.analyzeItem(input))), ...vision } : await super.analyzeItem(input);
+
     const answers = input.answers
       ? Object.entries(input.answers).map(([k, v]) => `${k}: ${v}`).join("; ")
       : "none";
