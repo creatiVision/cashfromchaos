@@ -209,6 +209,11 @@ export interface Item {
   messages: BuyerMessage[];
   agentReplies: AgentReply[];
   payment: Payment;
+  pendingOffer?: {
+    buyerName: string;
+    offer: number;
+    ts: number;
+  };
   fulfillment?: FulfillmentPlan;
   ledger: LedgerEntry[];
   /** Cached net payout calculated from ledger. */

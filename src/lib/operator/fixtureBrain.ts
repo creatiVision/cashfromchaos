@@ -20,7 +20,7 @@ import type {
   OperatorBrain,
 } from "@/lib/types";
 import { getAdapter } from "@/lib/marketplace/registry";
-import { matchArchetype, type Archetype } from "@/lib/operator/archetypes";
+import { matchArchetype } from "@/lib/operator/archetypes";
 
 // Pre-compiled RegExp patterns for condition refinement & buyer message handling
 const FAULTY_CONDITION_PATTERN = /(faulty|not work|broken|for parts)/;
@@ -100,13 +100,6 @@ export function getPriorCounters(agentReplies: AgentReply[], targetPrice: number
   }, []);
 }
 
-/** Count buyer messages that contain an explicit or parsable offer. */
-export function countBuyerOffers(messages: BuyerMessage[]): number {
-  return messages.filter(
-    (m) => (m.offer ?? parseOffer(m.text)) !== undefined
-  ).length;
-}
-
 /** Context object encapsulating calculated negotiation state and item/message references. */
 export interface NegotiationContext {
   item: Item;
@@ -133,7 +126,9 @@ function getNegotiationContext(item: Item, message: BuyerMessage): NegotiationCo
   const priorCounters = getPriorCounters(item.agentReplies, policy.targetPrice);
   const counterFloor = priorCounters.length ? Math.min(...priorCounters) : 0;
   const lastCounter = priorCounters.length ? priorCounters[priorCounters.length - 1] : undefined;
-  const buyerOffers = countBuyerOffers(item.messages);
+  const buyerOffers = item.messages.filter(
+    (m) => (m.offer ?? parseOffer(m.text)) !== undefined
+  ).length;
   const firm = buyerOffers >= 2;
   const tol = Math.max(2, Math.round(policy.targetPrice * 0.03));
   const standingAsk = lastCounter ?? policy.targetPrice;
@@ -342,19 +337,6 @@ export const buyerMessageHandlers: BuyerMessageHandler[] = [
 export class FixtureBrain implements OperatorBrain {
   readonly name: string = "fixture";
 
-  private getArchetype(analysis: ItemAnalysis): Archetype {
-    if (analysis.matchedArchetype) {
-      return analysis.matchedArchetype;
-    }
-    const matched = matchArchetype(analysis.title + " " + analysis.category);
-    try {
-      analysis.matchedArchetype = matched;
-    } catch {
-      // Ignored if analysis object is frozen
-    }
-    return matched;
-  }
-
   async analyzeItem(input: ItemIntake): Promise<ItemAnalysis> {
     const a = matchArchetype(input.clue + " " + (input.notes ?? ""));
     const { low, high, notes } = refineWithAnswers(a, input);
@@ -386,7 +368,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async chooseMarketplace(input: ItemAnalysis): Promise<MarketplacePlan> {
-    const a = this.getArchetype(input);
+    const a = input.matchedArchetype ?? matchArchetype(input.title + " " + input.category);
     const eff = input.fulfillment ?? a.fulfillment;
     // Rank compatible channels first; keep the rest as fallbacks.
     const fits = (id: string) => {
@@ -418,7 +400,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async buildPolicy(analysis: ItemAnalysis, plan: MarketplacePlan): Promise<CommercePolicy> {
-    const a = this.getArchetype(analysis);
+    const a = analysis.matchedArchetype ?? matchArchetype(analysis.title + " " + analysis.category);
     const mid = (analysis.estimatedMarketLow + analysis.estimatedMarketHigh) / 2;
     // Natural-looking prices (e.g. €120 / €75 / €55) instead of €119.6 / €73.75.
     const target = niceRound(analysis.estimatedMarketHigh * 0.92);
@@ -489,7 +471,7 @@ export class FixtureBrain implements OperatorBrain {
   }
 
   async decideFulfillment(item: Item): Promise<FulfillmentPlan> {
-    const a = this.getArchetype(item.analysis);
+    const a = item.analysis.matchedArchetype ?? matchArchetype(item.analysis.title + " " + item.analysis.category);
     const eff = item.analysis.fulfillment ?? a.fulfillment;
     if (eff === "local-pickup") {
       return {

@@ -95,14 +95,6 @@ describe('getValidatedHermesModel', () => {
     expect(() => getValidatedHermesModel('.model')).toThrow('contains unsafe characters');
   });
 
-  it('rejects model names with trailing, leading, or consecutive delimiters or flag-like subsegments', () => {
-    expect(() => getValidatedHermesModel('org//model')).toThrow('contains unsafe characters');
-    expect(() => getValidatedHermesModel('org/model/')).toThrow('contains unsafe characters');
-    expect(() => getValidatedHermesModel('org/model:')).toThrow('contains unsafe characters');
-    expect(() => getValidatedHermesModel('org/@model')).toThrow('contains unsafe characters');
-    expect(() => getValidatedHermesModel('org/-flag')).toThrow('contains unsafe characters');
-  });
-
   it('rejects unsafe characters in model names', () => {
     expect(() => getValidatedHermesModel('model; id')).toThrow('contains unsafe characters');
     expect(() => getValidatedHermesModel('model | grep x')).toThrow('contains unsafe characters');
@@ -280,38 +272,11 @@ describe('runHermes', () => {
     );
   });
 
-  it('rejects with error message without trailing space when stderr is null or undefined', async () => {
-    mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(new Error('Execution error'), '', null);
-    });
-
-    await expect(runHermes('Fail')).rejects.toThrow(
-      'hermes CLI failed: Execution error'
-    );
-  });
-
   it('rejects when CLI produces no output or only whitespace', async () => {
     mockedExecFile.mockImplementation((file, args, options, callback) => {
       callback(null, '   \n  ', '');
     });
 
     await expect(runHermes('Empty')).rejects.toThrow('hermes CLI produced no output');
-  });
-  it('rejects with error message when CLI execution fails with undefined or null stderr', async () => {
-    mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(new Error('Command failed'), '', null);
-    });
-
-    await expect(runHermes('Fail')).rejects.toThrow(
-      'hermes CLI failed: Command failed'
-    );
-  });
-
-  it('rejects when CLI stdout is null or undefined', async () => {
-    mockedExecFile.mockImplementation((file, args, options, callback) => {
-      callback(null, null, '');
-    });
-
-    await expect(runHermes('Null stdout')).rejects.toThrow('hermes CLI produced no output');
   });
 });

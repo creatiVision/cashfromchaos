@@ -9,6 +9,7 @@ import { DEMO_INTAKES } from "@/fixtures/items";
 import { eur } from "@/lib/money";
 import { getOperator } from "@/lib/operator";
 import { FixtureBrain } from "@/lib/operator/fixtureBrain";
+import { persistItemToDb, loadItemsFromDb, clearItemsInDb } from "@/lib/db";
 import type {
   AgentReply,
   BuyerMessage,
@@ -137,6 +138,7 @@ export function saveItem(item: Item): void {
   const s = store();
   s.items.set(item.id, item);
   s.sortedCache = null;
+  persistItemToDb(item).catch(() => {});
 }
 
 export function setStatus(item: Item, status: TransactionStatus, opts: { skipSave?: boolean } = {}): void {
@@ -175,7 +177,22 @@ export async function negotiate(
     reply.decision === "accept" ? "money" : "decision"
   );
 
-  if (reply.dealAgreed && reply.agreedPrice !== undefined) {
+  if (reply.decision === "escalate-human" && msg.offer !== undefined && !opts.skipSave) {
+    item.pendingOffer = {
+      buyerName: msg.buyerName,
+      offer: msg.offer,
+      ts: Date.now(),
+    };
+    setStatus(item, "escalated", { skipSave: opts.skipSave });
+    trace(
+      item,
+      "operator",
+      `Offer escalated to seller`,
+      `€${msg.offer} is below policy floor. Awaiting seller approval.`,
+      "warn"
+    );
+  } else if (reply.dealAgreed && reply.agreedPrice !== undefined) {
+    item.pendingOffer = undefined;
     item.payment = {
       provider: item.payment.provider,
       status: "none",
@@ -202,6 +219,7 @@ export async function resetDemo(): Promise<void> {
   s.sortedCache = null;
   s.seeded = false;
   seedPromise = null;
+  await clearItemsInDb().catch(() => {});
   await ensureSeeded();
 }
 
@@ -210,9 +228,21 @@ export function ensureSeeded(): Promise<void> {
   if (s.seeded) return Promise.resolve();
   if (!seedPromise) {
     s.seeded = true; // set first to avoid re-entry while async seeds run
-    seedPromise = seedDemo();
+    seedPromise = hydrateOrSeedDemo();
   }
   return seedPromise;
+}
+
+async function hydrateOrSeedDemo(): Promise<void> {
+  const dbItems = await loadItemsFromDb();
+  if (dbItems && dbItems.length > 0) {
+    const s = store();
+    for (const item of dbItems) {
+      s.items.set(item.id, item);
+    }
+    return;
+  }
+  await seedDemo();
 }
 
 async function seedDemo(): Promise<void> {

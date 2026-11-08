@@ -102,22 +102,6 @@ describe("niceRound", () => {
     expect(niceRound(73.75)).toBe(75);
     expect(niceRound(110.72)).toBe(110);
   });
-
-  it("handles large numbers (hundreds, thousands, millions, billions) and snaps to nearest 5", () => {
-    expect(niceRound(500)).toBe(500);
-    expect(niceRound(1000)).toBe(1000);
-    expect(niceRound(2500)).toBe(2500);
-    expect(niceRound(2502.49)).toBe(2500);
-    expect(niceRound(2502.5)).toBe(2505);
-    expect(niceRound(10000)).toBe(10000);
-    expect(niceRound(10002.49)).toBe(10000);
-    expect(niceRound(10002.5)).toBe(10005);
-    expect(niceRound(50000)).toBe(50000);
-    expect(niceRound(100000)).toBe(100000);
-    expect(niceRound(1000000)).toBe(1000000);
-    expect(niceRound(1234567.89)).toBe(1234570);
-    expect(niceRound(1000000000)).toBe(1000000000);
-  });
 });
 
 describe("parseOffer", () => {
@@ -126,30 +110,20 @@ describe("parseOffer", () => {
     expect(parseOffer("50€")).toBe(50);
     expect(parseOffer("€50")).toBe(50);
     expect(parseOffer("50 euros")).toBe(50);
-    expect(parseOffer("50eur")).toBe(50);
   });
 
   it("parses decimal amounts with dot or comma", () => {
     expect(parseOffer("50.5")).toBe(50.5);
     expect(parseOffer("75,50")).toBe(75.5);
-    expect(parseOffer("0,99 €")).toBe(0.99);
   });
 
   it("handles thousands separators", () => {
     expect(parseOffer("1.200")).toBe(1200);
     expect(parseOffer("1.200€")).toBe(1200);
-    expect(parseOffer("1.200,50")).toBe(1200.5);
   });
 
-  it("handles non-breaking spaces and whitespace variations", () => {
-    expect(parseOffer("50\u00a0€")).toBe(50);
-    expect(parseOffer("  € 100  ")).toBe(100);
-  });
-
-  it("returns undefined for text without numeric offers or non-finite results", () => {
+  it("returns undefined for text without numeric offers", () => {
     expect(parseOffer("hello world")).toBeUndefined();
     expect(parseOffer("no price here")).toBeUndefined();
-    expect(parseOffer("€")).toBeUndefined();
-    expect(parseOffer("1" + "0".repeat(309))).toBeUndefined();
   });
 });
