@@ -13,19 +13,21 @@ let pool: Pool | null = null;
 let initialized = false;
 
 export function getPgPool(): Pool | null {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
   if (
     typeof jest !== "undefined" ||
     process.env.NODE_ENV === "test" ||
     process.env.JEST_WORKER_ID !== undefined ||
-    process.env.CFC_DB === "off"
+    process.env.CFC_DB === "off" ||
+    !databaseUrl
   ) {
     return null;
   }
   if (!pool) {
+    // Security: Never hardcode database credentials or connection strings in source code.
+    // PostgreSQL persistence is only initialized when DATABASE_URL is explicitly configured.
     const config: PoolConfig = {
-      connectionString:
-        process.env.DATABASE_URL ||
-        "postgres://pgadmin:81914287fd58ccba48967c0b8483dfc74cced7f28c14d196@127.0.0.1:5432/cashfromchaos",
+      connectionString: databaseUrl,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 3000,

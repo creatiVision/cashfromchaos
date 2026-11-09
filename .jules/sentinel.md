@@ -1,0 +1,4 @@
+## 2026-11-09 - Hardcoded Database Credentials in Persistence Layer
+**Vulnerability:** A PostgreSQL connection string containing a hardcoded username and password (`postgres://pgadmin:81914287fd58ccba48967c0b8483dfc74cced7f28c14d196@127.0.0.1:5432/cashfromchaos`) was set as a default fallback in `src/lib/db.ts` when `DATABASE_URL` was unset.
+**Learning:** Default or fallback connection strings intended for local dockerized development or testing can easily embed real or sensitive credentials into source control, creating a critical vulnerability if committed.
+**Prevention:** Never provide default credentials or sensitive connection strings in application source code. Always require credentials via environment variables (`DATABASE_URL`), validate they are non-empty before instantiating client pools, and default to safe fallback behavior (such as in-memory storage) when unconfigured.
