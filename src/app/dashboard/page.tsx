@@ -45,9 +45,12 @@ export default async function Dashboard() {
               className="panel group flex flex-col gap-4 p-4 transition hover:border-cash/40 sm:flex-row"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* Bolt: loading="lazy" defers off-screen image requests; decoding="async" avoids main-thread decode blocking */}
               <img
                 src={item.intake.photos[0]}
                 alt={item.analysis.title}
+                loading="lazy"
+                decoding="async"
                 className="h-40 w-full shrink-0 rounded-sm border border-edge object-cover sm:h-28 sm:w-28"
               />
               <div className="min-w-0 flex-1">

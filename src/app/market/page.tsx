@@ -21,7 +21,14 @@ export default async function MarketList() {
         {items.map((item) => (
           <Link key={item.id} href={`/market/${item.id}`} className="panel group overflow-hidden transition hover:border-cash/40">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.intake.photos[0]} alt={item.analysis.title} className="h-44 w-full object-cover" />
+            {/* Bolt: loading="lazy" defers off-screen image requests; decoding="async" avoids main-thread decode blocking */}
+            <img
+              src={item.intake.photos[0]}
+              alt={item.analysis.title}
+              loading="lazy"
+              decoding="async"
+              className="h-44 w-full object-cover"
+            />
             <div className="p-4">
               <div className="flex items-center justify-between">
                 <h3 className="truncate font-bold">{item.analysis.title}</h3>
