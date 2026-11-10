@@ -5,6 +5,8 @@ import { eur } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
+const MAX_ITEM_ID_LENGTH = 100;
+
 /**
  * POST /api/approve
  * Human-in-the-loop escalation approval endpoint.
@@ -14,14 +16,23 @@ export async function POST(req: NextRequest) {
   const denied = checkApiAuth(req);
   if (denied) return denied;
 
+  let body: unknown;
   try {
-    const body = await req.json();
-    const { itemId, decision } = body;
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-    if (!itemId || typeof itemId !== "string") {
-      return NextResponse.json({ error: "itemId must be a non-empty string" }, { status: 400 });
-    }
+  const { itemId, decision } = (body as Record<string, unknown> | null) ?? {};
 
+  if (!itemId || typeof itemId !== "string" || itemId.length > MAX_ITEM_ID_LENGTH) {
+    return NextResponse.json(
+      { error: `itemId must be a non-empty string of at most ${MAX_ITEM_ID_LENGTH} characters` },
+      { status: 400 }
+    );
+  }
+
+  try {
     if (decision !== "approve" && decision !== "decline") {
       return NextResponse.json({ error: "decision must be either 'approve' or 'decline'" }, { status: 400 });
     }
@@ -79,8 +90,8 @@ export async function POST(req: NextRequest) {
         status: item.status,
       });
     }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: "Failed to process approval", details: msg }, { status: 500 });
+  } catch {
+    // Fail securely: do not expose internal error messages or stack traces to clients
+    return NextResponse.json({ error: "Failed to process approval" }, { status: 500 });
   }
 }
